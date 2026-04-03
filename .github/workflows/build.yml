@@ -28,9 +28,19 @@ jobs:
       run: |
         cd $GITHUB_WORKSPACE
         export BUILDOZER_WARN_ON_ROOT=0
-        yes | buildozer android debug
+        yes | buildozer android debug 2>&1 | tee build_output.log || true
+        echo "=== ERRORES ==="
+        grep -E "ERROR|error:|FAILED|Exception|Traceback" build_output.log | grep -v "^#" | head -30
+
+    - name: Upload log
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-log
+        path: build_output.log
 
     - name: Upload APK
+      if: always()
       uses: actions/upload-artifact@v4
       with:
         name: panaderia-inventarios
