@@ -1,25 +1,22 @@
 """
 main.py — Punto de entrada de la app de inventarios para panadería.
-KivyMD 2.0 + SQLite. Diseño móvil con NavigationDrawer.
+KivyMD 1.2.0 + SQLite. Diseño móvil con NavigationDrawer.
 """
 
 from kivymd.app import MDApp
 from kivymd.uix.navigationdrawer import (
     MDNavigationDrawer, MDNavigationDrawerMenu,
-    MDNavigationDrawerItem, MDNavigationDrawerItemLeadingIcon,
-    MDNavigationDrawerItemText, MDNavigationDrawerLabel,
+    MDNavigationDrawerItem, MDNavigationDrawerLabel,
     MDNavigationLayout,
 )
 from kivymd.uix.screenmanager import MDScreenManager
 from kivymd.uix.screen import MDScreen
-from kivymd.uix.appbar import (
-    MDTopAppBar, MDTopAppBarLeadingButtonContainer,
-    MDTopAppBarTitle, MDActionTopAppBarButton,
-)
+from kivymd.uix.toolbar import MDTopAppBar
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivy.lang import Builder
 from kivy.clock import Clock
+from kivy.utils import get_color_from_hex
 from datetime import datetime
 
 import database
@@ -28,7 +25,7 @@ import database
 COLOR_CAFE   = "#3E2723"   # fondo barra superior
 COLOR_DORADO = "#FFA000"   # acento
 COLOR_BLANCO = [1, 1, 1, 1]
-COLOR_FONDO  = [1, 1, 1, 1]            # #FFFFFF blanco puro
+COLOR_FONDO  = [1, 1, 1, 1]
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KV Layout
@@ -50,19 +47,11 @@ MDNavigationLayout:
 
                 # ── Barra superior ──────────────────────────────────────────
                 MDTopAppBar:
-                    theme_bg_color: "Custom"
-                    md_bg_color: app.COLOR_CAFE
-                    MDTopAppBarLeadingButtonContainer:
-                        MDActionTopAppBarButton:
-                            icon: "menu"
-                            theme_icon_color: "Custom"
-                            icon_color: 1, 1, 1, 1
-                            on_release: nav_drawer.set_state("open")
-                    MDTopAppBarTitle:
-                        text: "Panadería Inventarios"
-                        halign: "center"
-                        theme_text_color: "Custom"
-                        text_color: 1, 1, 1, 1
+                    title: "Panadería Inventarios"
+                    left_action_items: [["menu", lambda x: nav_drawer.set_state("open")]]
+                    md_bg_color: app.color_cafe
+                    specific_text_color: 1, 1, 1, 1
+                    elevation: 4
 
                 # ── Contenido dashboard ──────────────────────────────────────
                 MDBoxLayout:
@@ -74,18 +63,16 @@ MDNavigationLayout:
                     MDLabel:
                         text: "Panadería"
                         halign: "center"
-                        font_style: "Display"
-                        role: "small"
+                        font_style: "H4"
                         theme_text_color: "Custom"
-                        text_color: app.COLOR_CAFE
+                        text_color: app.color_cafe
                         size_hint_y: None
                         height: "56dp"
 
                     MDLabel:
                         text: "Sistema de Control de Inventarios"
                         halign: "center"
-                        font_style: "Title"
-                        role: "medium"
+                        font_style: "H6"
                         theme_text_color: "Secondary"
                         size_hint_y: None
                         height: "36dp"
@@ -94,8 +81,7 @@ MDNavigationLayout:
                         id: lbl_fecha
                         text: ""
                         halign: "center"
-                        font_style: "Body"
-                        role: "large"
+                        font_style: "Body1"
                         theme_text_color: "Secondary"
                         size_hint_y: None
                         height: "32dp"
@@ -106,8 +92,7 @@ MDNavigationLayout:
                     MDLabel:
                         text: "Usa el menú ☰ para navegar entre módulos"
                         halign: "center"
-                        font_style: "Body"
-                        role: "medium"
+                        font_style: "Body2"
                         theme_text_color: "Secondary"
                         size_hint_y: None
                         height: "32dp"
@@ -127,85 +112,67 @@ MDNavigationLayout:
                 text: "MENÚ PRINCIPAL"
 
             MDNavigationDrawerItem:
+                icon: "view-dashboard"
+                text: "Panel Principal"
                 on_release:
                     screen_manager.current = "dashboard"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "view-dashboard"
-                MDNavigationDrawerItemText:
-                    text: "Panel Principal"
 
             MDNavigationDrawerItem:
+                icon: "account-tie"
+                text: "Proveedores"
                 on_release:
                     screen_manager.current = "proveedores"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "account-tie"
-                MDNavigationDrawerItemText:
-                    text: "Proveedores"
 
             MDNavigationDrawerItem:
+                icon: "package-variant"
+                text: "Materias Primas"
                 on_release:
                     screen_manager.current = "materias_primas"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "package-variant"
-                MDNavigationDrawerItemText:
-                    text: "Materias Primas"
 
             MDNavigationDrawerItem:
+                icon: "layers"
+                text: "Lotes"
                 on_release:
                     screen_manager.current = "lotes"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "layers"
-                MDNavigationDrawerItemText:
-                    text: "Lotes"
 
             MDNavigationDrawerItem:
+                icon: "warehouse"
+                text: "Inventario"
                 on_release:
                     screen_manager.current = "inventario"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "warehouse"
-                MDNavigationDrawerItemText:
-                    text: "Inventario"
 
             MDNavigationDrawerItem:
+                icon: "book-open-variant"
+                text: "Recetas"
                 on_release:
                     screen_manager.current = "recetas"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "book-open-variant"
-                MDNavigationDrawerItemText:
-                    text: "Recetas"
 
             MDNavigationDrawerItem:
+                icon: "tray-arrow-up"
+                text: "Salidas / Producción"
                 on_release:
                     screen_manager.current = "salidas"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "tray-arrow-up"
-                MDNavigationDrawerItemText:
-                    text: "Salidas / Producción"
 
             MDNavigationDrawerItem:
+                icon: "bread-slice"
+                text: "Producto Terminado"
                 on_release:
                     screen_manager.current = "producto_terminado"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "bread-slice"
-                MDNavigationDrawerItemText:
-                    text: "Producto Terminado"
 
             MDNavigationDrawerItem:
+                icon: "chart-bar"
+                text: "Reportes"
                 on_release:
                     screen_manager.current = "reportes"
                     nav_drawer.set_state("close")
-                MDNavigationDrawerItemLeadingIcon:
-                    icon: "chart-bar"
-                MDNavigationDrawerItemText:
-                    text: "Reportes"
 """
 
 
@@ -216,10 +183,7 @@ MDNavigationLayout:
 def _crear_pantalla_placeholder(nombre, titulo):
     from kivymd.uix.screen import MDScreen
     from kivymd.uix.label import MDLabel
-    from kivymd.uix.appbar import (
-        MDTopAppBar, MDTopAppBarLeadingButtonContainer,
-        MDTopAppBarTitle, MDActionTopAppBarButton,
-    )
+    from kivymd.uix.toolbar import MDTopAppBar
     from kivy.utils import get_color_from_hex
 
     cafe = get_color_from_hex(COLOR_CAFE)
@@ -233,24 +197,14 @@ def _crear_pantalla_placeholder(nombre, titulo):
             layout = MDBoxLayout(orientation="vertical")
 
             bar = MDTopAppBar(
-                theme_bg_color="Custom",
+                title=titulo,
                 md_bg_color=cafe,
+                specific_text_color=COLOR_BLANCO,
+                elevation=4,
             )
-            leading = MDTopAppBarLeadingButtonContainer()
-            btn_menu = MDActionTopAppBarButton(
-                icon="menu",
-                theme_icon_color="Custom",
-                icon_color=COLOR_BLANCO,
-            )
-            btn_menu.bind(on_release=lambda x: self._nav and self._nav.set_state("open"))
-            leading.add_widget(btn_menu)
-            bar.add_widget(leading)
-            bar.add_widget(MDTopAppBarTitle(
-                text=titulo,
-                halign="center",
-                theme_text_color="Custom",
-                text_color=COLOR_BLANCO,
-            ))
+            bar.left_action_items = [
+                ["menu", lambda x: self._nav and self._nav.set_state("open")]
+            ]
             layout.add_widget(bar)
 
             layout.add_widget(MDLabel(
@@ -269,12 +223,12 @@ def _crear_pantalla_placeholder(nombre, titulo):
 
 class PanaderiaApp(MDApp):
 
-    # Exponer constante de color al KV string
-    COLOR_CAFE = COLOR_CAFE
+    # Exponer color café como lista RGBA para el KV string
+    color_cafe = get_color_from_hex(COLOR_CAFE)
 
     def build(self):
-        # Tema Material 3 con color semilla café oscuro
-        self.theme_cls.primary_palette = COLOR_CAFE
+        # Tema Material 2 con paleta café oscuro
+        self.theme_cls.primary_palette = "Brown"
         self.theme_cls.theme_style = "Light"
 
         database.inicializar_db()
