@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -c \"import kivymd; print\\(kivymd.__version__\\)\")",
+      "Bash(python3 -c \"from kivymd.app import MDApp; print\\(''MDApp OK''\\)\")",
+      "Read(//home/benjamin/.local/lib/python3.12/site-packages/kivymd/uix/appbar/**)",
+      "Read(//home/benjamin/.local/lib/python3.12/site-packages/kivymd/uix/button/**)",
+      "Read(//home/benjamin/.local/lib/python3.12/site-packages/kivymd/uix/navigationdrawer/**)",
+      "Read(//home/benjamin/.local/lib/python3.12/site-packages/kivymd/uix/dialog/**)",
+      "Read(//home/benjamin/.local/lib/python3.12/site-packages/kivymd/uix/snackbar/**)",
+      "Bash(DISPLAY=:0 python3 2)",
+      "Bash(/dev/null:*)",
+      "Bash(grep -v '^$')",
+      "Bash(/dev/null -c \":*)",
+      "Bash(python3:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(buildozer android:*)",
+      "Bash(ls:*)"
+    ]
+  }
+}
