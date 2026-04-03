@@ -12,7 +12,8 @@ version = 1.0
 
 # Dependencias corregidas (sin sqlite3, kivymd con versión)
 #requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==10.1.0,android,pyjnius==1.6.1
-requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==10.1.0,android
+#requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==10.1.0,android
+requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==10.1.0,android,filetype
 
 orientation = portrait
 
