@@ -15,7 +15,12 @@
       "Bash(python3:*)",
       "Bash(grep -v \"^$\")",
       "Bash(buildozer android:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(/tmp/kivymd12_test/bin/pip install:*)",
+      "Bash(/tmp/kivymd12_test/bin/python -c \"import kivymd; print\\(kivymd.__version__\\)\")",
+      "Bash(/tmp/kivymd12_test/bin/python -c ':*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)"
     ]
   }
 }
