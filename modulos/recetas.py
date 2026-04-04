@@ -11,14 +11,13 @@ from kivy.uix.widget import Widget
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.label import MDLabel
-from kivymd.uix.divider import MDDivider
 from kivymd.uix.button import MDFloatingActionButton, MDFlatButton, MDIconButton
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.menu import MDDropdownMenu
 
 import database
-from modulos.base import PantallaBase
+from modulos.base import PantallaBase, MDDivider
 
 _CAFE   = get_color_from_hex("#3E2723")
 _DORADO = get_color_from_hex("#FFA000")

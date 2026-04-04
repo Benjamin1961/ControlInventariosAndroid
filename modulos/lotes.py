@@ -12,7 +12,6 @@ from kivy.core.window import Window
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
 from kivymd.uix.label import MDLabel
-from kivymd.uix.divider import MDDivider
 from kivymd.uix.button import MDFloatingActionButton, MDFlatButton, MDIconButton
 from kivymd.uix.textfield import MDTextField
 from kivymd.uix.dialog import MDDialog
@@ -22,7 +21,7 @@ from kivymd.uix.pickers import MDDatePicker
 from datetime import date, timedelta
 
 import database
-from modulos.base import PantallaBase
+from modulos.base import PantallaBase, MDDivider
 
 # ─── Paleta ───────────────────────────────────────────────────────────────────
 _CAFE    = get_color_from_hex("#3E2723")

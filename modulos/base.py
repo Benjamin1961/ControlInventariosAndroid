@@ -3,6 +3,7 @@ base.py — Clase base para todas las pantallas del sistema.
 KivyMD 1.2.0: MDTopAppBar de kivymd.uix.toolbar, MDFlatButton, MDSnackbar simple.
 """
 
+from kivy.metrics import dp
 from kivy.utils import get_color_from_hex
 from kivymd.uix.screen import MDScreen
 from kivymd.uix.boxlayout import MDBoxLayout
@@ -10,6 +11,24 @@ from kivymd.uix.toolbar import MDTopAppBar
 from kivymd.uix.snackbar import MDSnackbar
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
+
+# ─── Compatibilidad KivyMD 1.2.0 ─────────────────────────────────────────────
+# kivymd.uix.divider (MDDivider) sólo existe en KivyMD 2.x.
+# En 1.2.0 usamos un MDBoxLayout delgado como sustituto.
+
+class MDDivider(MDBoxLayout):
+    """Separador horizontal/vertical compatible con KivyMD 1.2.0."""
+
+    def __init__(self, orientation="horizontal", **kwargs):
+        if orientation == "horizontal":
+            kwargs.setdefault("size_hint_y", None)
+            kwargs.setdefault("height", dp(1))
+        else:
+            kwargs.setdefault("size_hint_x", None)
+            kwargs.setdefault("width", dp(1))
+        kwargs.setdefault("md_bg_color", [0.75, 0.75, 0.75, 1])
+        super().__init__(**kwargs)
+
 
 # Colores corporativos
 _CAFE   = get_color_from_hex("#3E2723")
