@@ -193,7 +193,7 @@ class Pantalla(PantallaBase):
         )
         self._tf_buscar = MDTextField(
             hint_text="Buscar por nombre…",
-            mode="rectangle", size_hint_x=1,
+            size_hint_x=1,
         )
         self._tf_buscar.bind(text=lambda inst, val: self._filtrar(val))
         barra.add_widget(self._tf_buscar)
@@ -284,8 +284,6 @@ class Pantalla(PantallaBase):
             text=texto,
             hint_text=hint,
             helper_text=error_msg,
-            helper_text_mode="on_error" if error_msg else "none",
-            mode="rectangle",
             size_hint_y=None,
             height=dp(68),
         )
@@ -369,10 +367,8 @@ class Pantalla(PantallaBase):
         unidad = self._sel_unidad.valor.strip()
 
         if not nombre:
-            self._tf_nombre.error = True
             self.show_snack("El nombre es obligatorio")
             return
-        self._tf_nombre.error = False
 
         if not unidad:
             self.show_snack("Selecciona la unidad de medida")
@@ -380,9 +376,7 @@ class Pantalla(PantallaBase):
 
         try:
             stock_min = float(self._tf_stock_min.text.strip() or 0)
-            self._tf_stock_min.error = False
         except ValueError:
-            self._tf_stock_min.error = True
             self.show_snack("El stock mínimo debe ser un número")
             return
 

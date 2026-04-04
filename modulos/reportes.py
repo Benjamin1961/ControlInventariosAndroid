@@ -366,7 +366,7 @@ class Pantalla(PantallaBase):
 
         self._tf_desde = MDTextField(
             text=self._fecha_desde, hint_text="Desde",
-            mode="rectangle", size_hint_x=0.35, size_hint_y=None, height=dp(56),
+            size_hint_x=0.35, size_hint_y=None, height=dp(56),
         )
         btn_cal_d = MDIconButton(
             icon="calendar-start", theme_icon_color="Custom", icon_color=_CAFE,
@@ -376,7 +376,7 @@ class Pantalla(PantallaBase):
 
         self._tf_hasta = MDTextField(
             text=self._fecha_hasta, hint_text="Hasta",
-            mode="rectangle", size_hint_x=0.35, size_hint_y=None, height=dp(56),
+            size_hint_x=0.35, size_hint_y=None, height=dp(56),
         )
         btn_cal_h = MDIconButton(
             icon="calendar-end", theme_icon_color="Custom", icon_color=_CAFE,
@@ -577,7 +577,7 @@ class Pantalla(PantallaBase):
         )
         self._tf_dias_proy = MDTextField(
             text=str(self._dias_proyeccion), hint_text="Analizar últimos X días",
-            mode="rectangle", size_hint_x=0.4, size_hint_y=None, height=dp(56),
+            size_hint_x=0.4, size_hint_y=None, height=dp(56),
             input_type="number",
         )
         btn_calc = MDFlatButton(

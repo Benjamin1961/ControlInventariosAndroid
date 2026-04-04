@@ -159,7 +159,7 @@ class Pantalla(PantallaBase):
             padding=[dp(12), dp(8)], md_bg_color=_BLANCO,
         )
         self._tf_buscar = MDTextField(
-            hint_text="Buscar por nombre…", mode="rectangle", size_hint_x=1,
+            hint_text="Buscar por nombre…", size_hint_x=1,
         )
         self._tf_buscar.bind(text=lambda inst, val: self._filtrar(val))
         barra.add_widget(self._tf_buscar)
@@ -262,8 +262,7 @@ class Pantalla(PantallaBase):
         tf = MDTextField(
             text=texto, hint_text=hint,
             helper_text=error_msg,
-            helper_text_mode="on_error" if error_msg else "none",
-            mode="rectangle", size_hint_y=None, height=dp(68),
+            size_hint_y=None, height=dp(68),
         )
         if teclado != "normal":
             tf.input_type = teclado
@@ -439,8 +438,8 @@ class Pantalla(PantallaBase):
 
         self._tf_cantidad_ing = MDTextField(
             hint_text="Cantidad *",
-            helper_text="Ingresa un número mayor a 0", helper_text_mode="on_error",
-            mode="rectangle", size_hint_y=None, height=dp(68),
+            helper_text="Ingresa un número mayor a 0",
+            size_hint_y=None, height=dp(68),
             input_type="number",
         )
 
@@ -481,9 +480,7 @@ class Pantalla(PantallaBase):
             cantidad = float(self._tf_cantidad_ing.text.strip())
             if cantidad <= 0:
                 raise ValueError
-            self._tf_cantidad_ing.error = False
         except (ValueError, TypeError):
-            self._tf_cantidad_ing.error = True
             self.show_snack("La cantidad debe ser un número mayor a 0")
             return
 
@@ -509,18 +506,14 @@ class Pantalla(PantallaBase):
     def _guardar(self):
         nombre = self._tf_nombre.text.strip()
         if not nombre:
-            self._tf_nombre.error = True
             self.show_snack("El nombre de la receta es obligatorio")
             return
-        self._tf_nombre.error = False
 
         try:
             porciones = float(self._tf_porciones.text.strip())
             if porciones <= 0:
                 raise ValueError
-            self._tf_porciones.error = False
         except (ValueError, TypeError):
-            self._tf_porciones.error = True
             self.show_snack("Las porciones deben ser un número mayor a 0")
             return
 

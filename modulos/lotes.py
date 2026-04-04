@@ -344,7 +344,7 @@ class Pantalla(PantallaBase):
     def _campo_texto(self, hint, texto="", input_filter=None):
         tf = MDTextField(
             text=str(texto), hint_text=hint,
-            mode="rectangle", size_hint_y=None, height=dp(68),
+            size_hint_y=None, height=dp(68),
         )
         if input_filter:
             tf.input_filter = input_filter
@@ -354,7 +354,7 @@ class Pantalla(PantallaBase):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(68), spacing=dp(4))
         tf = MDTextField(
             text=str(texto), hint_text=hint,
-            mode="rectangle", size_hint_x=0.82, size_hint_y=None, height=dp(68),
+            size_hint_x=0.82, size_hint_y=None, height=dp(68),
         )
         btn_cal = MDIconButton(
             icon="calendar", size_hint_x=None, width=dp(48),

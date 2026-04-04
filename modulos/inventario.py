@@ -155,7 +155,7 @@ class Pantalla(PantallaBase):
         fila2 = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(68))
         self._tf_buscar = MDTextField(
             hint_text="Buscar materia prima…",
-            mode="rectangle", size_hint_x=1, size_hint_y=None, height=dp(64),
+            size_hint_x=1, size_hint_y=None, height=dp(64),
         )
         self._tf_buscar.bind(text=lambda inst, val: self._aplicar_filtros())
         fila2.add_widget(self._tf_buscar)

@@ -195,7 +195,7 @@ class Pantalla(PantallaBase):
             padding=[dp(12), dp(8)], md_bg_color=_BLANCO,
         )
         self._tf_buscar = MDTextField(
-            hint_text="Buscar por nombre…", mode="rectangle", size_hint_x=1,
+            hint_text="Buscar por nombre…", size_hint_x=1,
         )
         self._tf_buscar.bind(text=lambda inst, val: self._filtrar(val))
         barra.add_widget(self._tf_buscar)
@@ -309,8 +309,7 @@ class Pantalla(PantallaBase):
         tf = MDTextField(
             text=texto, hint_text=hint,
             helper_text=error_msg,
-            helper_text_mode="on_error" if error_msg else "none",
-            mode="rectangle", size_hint_y=None, height=dp(68),
+            size_hint_y=None, height=dp(68),
         )
         if teclado != "normal":
             tf.input_type = teclado
@@ -320,8 +319,8 @@ class Pantalla(PantallaBase):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(68), spacing=dp(4))
         tf = MDTextField(
             text=texto, hint_text=hint,
-            helper_text="Formato AAAA-MM-DD", helper_text_mode="on_focus",
-            mode="rectangle", size_hint_x=0.82, size_hint_y=None, height=dp(68),
+            helper_text="Formato AAAA-MM-DD",
+            size_hint_x=0.82, size_hint_y=None, height=dp(68),
         )
         btn_cal = MDIconButton(
             icon="calendar-month",
@@ -506,18 +505,14 @@ class Pantalla(PantallaBase):
     def _guardar(self):
         nombre = self._tf_nombre.text.strip()
         if not nombre:
-            self._tf_nombre.error = True
             self.show_snack("El nombre del producto es obligatorio")
             return
-        self._tf_nombre.error = False
 
         try:
             cantidad = float(self._tf_cantidad.text.strip())
             if cantidad <= 0:
                 raise ValueError
-            self._tf_cantidad.error = False
         except (ValueError, TypeError):
-            self._tf_cantidad.error = True
             self.show_snack("La cantidad debe ser un número mayor a 0")
             return
 
@@ -528,9 +523,7 @@ class Pantalla(PantallaBase):
 
         try:
             margen = float(self._tf_margen.text.strip() or 0)
-            self._tf_margen.error = False
         except (ValueError, TypeError):
-            self._tf_margen.error = True
             self.show_snack("El margen debe ser un número (ej: 30)")
             return
 

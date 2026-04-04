@@ -288,7 +288,7 @@ class Pantalla(PantallaBase):
     def _campo_texto(self, hint: str, texto: str = "", teclado: str = "normal") -> MDTextField:
         tf = MDTextField(
             text=texto, hint_text=hint,
-            mode="rectangle", size_hint_y=None, height=dp(68),
+            size_hint_y=None, height=dp(68),
         )
         if teclado != "normal":
             tf.input_type = teclado
@@ -298,8 +298,8 @@ class Pantalla(PantallaBase):
         fila = MDBoxLayout(orientation="horizontal", size_hint_y=None, height=dp(68), spacing=dp(4))
         tf = MDTextField(
             text=texto, hint_text=hint,
-            helper_text="Formato AAAA-MM-DD", helper_text_mode="on_focus",
-            mode="rectangle", size_hint_x=0.82, size_hint_y=None, height=dp(68),
+            helper_text="Formato AAAA-MM-DD",
+            size_hint_x=0.82, size_hint_y=None, height=dp(68),
         )
         btn_cal = MDIconButton(
             icon="calendar-month",

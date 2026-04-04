@@ -162,7 +162,6 @@ class Pantalla(PantallaBase):
         )
         self._tf_buscar = MDTextField(
             hint_text="Buscar por nombre…",
-            mode="rectangle",
             size_hint_x=1,
         )
         self._tf_buscar.bind(text=lambda inst, val: self._filtrar(val))
@@ -272,8 +271,6 @@ class Pantalla(PantallaBase):
             text=texto,
             hint_text=hint,
             helper_text=error_msg,
-            helper_text_mode="on_error" if error_msg else "none",
-            mode="rectangle",
             size_hint_y=None,
             height=dp(68),
         )
@@ -354,10 +351,8 @@ class Pantalla(PantallaBase):
     def _guardar(self):
         nombre = self._tf_nombre.text.strip()
         if not nombre:
-            self._tf_nombre.error = True
             self.show_snack("El nombre del proveedor es obligatorio")
             return
-        self._tf_nombre.error = False
 
         datos = (
             nombre,
