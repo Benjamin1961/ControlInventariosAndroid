@@ -34,6 +34,9 @@ COLOR_DORADO = "#FFA000"   # acento
 COLOR_BLANCO = [1, 1, 1, 1]
 COLOR_FONDO  = [1, 1, 1, 1]
 
+# Código de solicitud para el selector de archivos de Android
+_REQUEST_CODE_RESTORE = 9001
+
 # ─────────────────────────────────────────────────────────────────────────────
 # KV Layout
 # ─────────────────────────────────────────────────────────────────────────────
@@ -189,6 +192,13 @@ MDNavigationLayout:
                 md_bg_color: 0.75, 0.75, 0.75, 1
 
             MDNavigationDrawerItem:
+                icon: "database-import"
+                text: "Restaurar Backup"
+                on_release:
+                    nav_drawer.set_state("close")
+                    app.iniciar_restaurar_backup()
+
+            MDNavigationDrawerItem:
                 icon: "exit-to-app"
                 text: "Salir"
                 theme_text_color: "Custom"
@@ -291,6 +301,7 @@ class PanaderiaApp(MDApp):
 
         self._nav_drawer = nav
         self._exit_dialog = None
+        self._restauracion_dialog = None
         self._registrar_pantallas(sm, nav)
 
         # Reloj para fecha/hora en el dashboard
@@ -301,8 +312,12 @@ class PanaderiaApp(MDApp):
         return root
 
     def on_start(self):
-        # Garantizar que el drawer esté cerrado cuando la UI esté lista
         self._nav_drawer.set_state("close")
+        try:
+            from android.activity import bind as activity_bind  # type: ignore
+            activity_bind(on_activity_result=self._on_actividad_resultado)
+        except Exception:
+            pass
 
     # ── Salida limpia ──────────────────────────────────────────────────────────
 
@@ -365,6 +380,144 @@ class PanaderiaApp(MDApp):
             mActivity.finishAndRemoveTask()
         except Exception:
             self.stop()
+
+    # ── Restaurar Backup ───────────────────────────────────────────────────────
+
+    def iniciar_restaurar_backup(self):
+        """Abre el selector de archivos nativo de Android (ACTION_OPEN_DOCUMENT)."""
+        try:
+            from jnius import autoclass          # type: ignore
+            from android import mActivity       # type: ignore
+            Intent   = autoclass('android.content.Intent')
+            intent   = Intent(Intent.ACTION_OPEN_DOCUMENT)
+            intent.addCategory(Intent.CATEGORY_OPENABLE)
+            intent.setType("*/*")
+            mActivity.startActivityForResult(intent, _REQUEST_CODE_RESTORE)
+        except Exception:
+            MDSnackbar(
+                text="Selector de archivos solo disponible en Android",
+                duration=3,
+            ).open()
+
+    def _on_actividad_resultado(self, request_code, result_code, data):
+        """Recibe el archivo elegido por el usuario en el selector."""
+        RESULT_OK = -1
+        if request_code == _REQUEST_CODE_RESTORE and result_code == RESULT_OK and data:
+            uri = data.getData()
+            if uri:
+                self._confirmar_restaurar(uri)
+
+    def _confirmar_restaurar(self, uri):
+        if self._restauracion_dialog:
+            self._restauracion_dialog.dismiss()
+
+        def _aceptar(x):
+            self._restauracion_dialog.dismiss()
+            self._ejecutar_restauracion(uri)
+
+        self._restauracion_dialog = MDDialog(
+            title="¿Restaurar backup?",
+            text=(
+                "Esto reemplazará TODOS los datos actuales con el backup "
+                "seleccionado. Esta acción no se puede deshacer."
+            ),
+            buttons=[
+                MDFlatButton(
+                    text="Cancelar",
+                    on_release=lambda x: self._restauracion_dialog.dismiss(),
+                ),
+                MDFlatButton(
+                    text="Restaurar",
+                    theme_text_color="Custom",
+                    text_color=get_color_from_hex(COLOR_CAFE),
+                    on_release=_aceptar,
+                ),
+            ],
+        )
+        self._restauracion_dialog.open()
+
+    def _copiar_uri_a_temp(self, uri):
+        """
+        Copia el contenido de un URI de Android (content://) a un archivo
+        temporal usando el descriptor de archivo nativo del SO.
+        """
+        import tempfile
+        from jnius import autoclass                          # type: ignore
+        context = autoclass('org.kivy.android.PythonActivity').mActivity
+        pfd     = context.getContentResolver().openFileDescriptor(uri, "r")
+        fd      = pfd.detachFd()   # entero: descriptor nativo del SO
+        tmp     = tempfile.mktemp(suffix='.db')
+        with os.fdopen(fd, 'rb') as src, open(tmp, 'wb') as dst:
+            shutil.copyfileobj(src, dst)
+        return tmp
+
+    def _es_sqlite_valido(self, path):
+        """Verifica que el archivo tenga la cabecera mágica de SQLite 3."""
+        try:
+            with open(path, 'rb') as f:
+                return f.read(16).startswith(b'SQLite format 3\x00')
+        except Exception:
+            return False
+
+    def _ejecutar_restauracion(self, uri):
+        # 1. Backup de seguridad de la BD activa antes de tocarla
+        ok_bk, bk_seguridad = self._hacer_respaldo()
+        bk_path = bk_seguridad if ok_bk else None
+
+        tmp = None
+        try:
+            # 2. Copiar el archivo seleccionado a un temporal
+            tmp = self._copiar_uri_a_temp(uri)
+
+            # 3. Validar que sea una BD SQLite legítima
+            if not self._es_sqlite_valido(tmp):
+                raise ValueError(
+                    "El archivo seleccionado no es una base de datos SQLite válida."
+                )
+
+            # 4. Reemplazar la BD activa
+            shutil.copy2(tmp, database.DB_PATH)
+
+            # 5. Reinicializar esquema / migraciones
+            database.inicializar_db()
+
+            MDSnackbar(text="Base de datos restaurada exitosamente", duration=3).open()
+
+        except Exception as e:
+            # Revertir al backup de seguridad si existe
+            if bk_path and os.path.isfile(bk_path):
+                try:
+                    shutil.copy2(bk_path, database.DB_PATH)
+                    database.inicializar_db()
+                except Exception:
+                    pass
+            self._mostrar_error_restauracion(str(e))
+
+        finally:
+            if tmp and os.path.isfile(tmp):
+                try:
+                    os.remove(tmp)
+                except Exception:
+                    pass
+
+    def _mostrar_error_restauracion(self, mensaje):
+        dlg = [None]
+
+        def _cerrar(x):
+            if dlg[0]:
+                dlg[0].dismiss()
+
+        dlg[0] = MDDialog(
+            title="Error al restaurar",
+            text=(
+                f"No se pudo restaurar el backup:\n{mensaje}\n\n"
+                "La base de datos anterior ha sido recuperada automáticamente."
+            ),
+            buttons=[
+                MDFlatButton(text="Aceptar", on_release=_cerrar),
+            ],
+        )
+        dlg[0].open()
 
     def _actualizar_reloj(self, dt):
         ahora = datetime.now()
