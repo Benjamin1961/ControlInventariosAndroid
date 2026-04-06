@@ -3,6 +3,9 @@ main.py — Punto de entrada de la app de inventarios para panadería.
 KivyMD 1.2.0 + SQLite. Diseño móvil con NavigationDrawer.
 """
 
+import os
+import shutil
+
 from kivymd.app import MDApp
 from kivymd.uix.navigationdrawer import (
     MDNavigationDrawer, MDNavigationDrawerMenu,
@@ -16,6 +19,7 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
+from kivymd.uix.snackbar import MDSnackbar
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex
@@ -238,6 +242,34 @@ def _crear_pantalla_placeholder(nombre, titulo):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Utilidades de respaldo
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _directorio_descargas():
+    """Devuelve la ruta de Descargas del sistema (Android o escritorio)."""
+    try:
+        from jnius import autoclass  # type: ignore
+        Environment = autoclass('android.os.Environment')
+        return Environment.getExternalStoragePublicDirectory(
+            Environment.DIRECTORY_DOWNLOADS
+        ).getAbsolutePath()
+    except Exception:
+        # Escritorio: carpeta ~/Descargas o ~/Downloads
+        for candidato in ('Descargas', 'Downloads'):
+            ruta = os.path.join(os.path.expanduser('~'), candidato)
+            if os.path.isdir(ruta):
+                return ruta
+        return os.path.expanduser('~')
+
+
+def _ruta_backup():
+    """Genera el path completo del archivo de respaldo con timestamp."""
+    ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    nombre = f"ControlInventarios_backup_{ts}.db"
+    return os.path.join(_directorio_descargas(), nombre)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Aplicación principal
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -259,6 +291,7 @@ class PanaderiaApp(MDApp):
 
         self._nav_drawer = nav
         self._exit_dialog = None
+        self._error_dialog = None
         self._registrar_pantallas(sm, nav)
 
         # Reloj para fecha/hora en el dashboard
@@ -280,8 +313,7 @@ class PanaderiaApp(MDApp):
 
         def _salir(x):
             self._exit_dialog.dismiss()
-            self.stop()
-            Window.close()
+            self._ejecutar_respaldo_y_cerrar()
 
         self._exit_dialog = MDDialog(
             title="Salir",
@@ -304,6 +336,58 @@ class PanaderiaApp(MDApp):
     def on_request_close(self, *args):
         self.confirmar_salir()
         return True  # impide el cierre inmediato hasta confirmar
+
+    # ── Respaldo automático ────────────────────────────────────────────────────
+
+    def _hacer_respaldo(self):
+        """Copia la BD al directorio de Descargas. Retorna (ok, ruta_o_error)."""
+        try:
+            src = database.DB_PATH
+            if not os.path.isfile(src):
+                return False, f"Archivo de base de datos no encontrado:\n{src}"
+            dst = _ruta_backup()
+            shutil.copy2(src, dst)
+            return True, dst
+        except Exception as e:
+            return False, str(e)
+
+    def _ejecutar_respaldo_y_cerrar(self):
+        ok, resultado = self._hacer_respaldo()
+        if ok:
+            MDSnackbar(text="Respaldo guardado en Descargas", duration=2).open()
+            Clock.schedule_once(lambda dt: self._cerrar_app(), 2.5)
+        else:
+            self._mostrar_error_respaldo(resultado)
+
+    def _mostrar_error_respaldo(self, mensaje_error):
+        if self._error_dialog:
+            self._error_dialog.dismiss()
+
+        def _cerrar_sin_respaldo(x):
+            self._error_dialog.dismiss()
+            self._cerrar_app()
+
+        self._error_dialog = MDDialog(
+            title="Error al respaldar",
+            text=f"No se pudo guardar el respaldo:\n{mensaje_error}\n\n¿Deseas cerrar la aplicación de todas formas?",
+            buttons=[
+                MDFlatButton(
+                    text="Cancelar",
+                    on_release=lambda x: self._error_dialog.dismiss(),
+                ),
+                MDFlatButton(
+                    text="Cerrar de todas formas",
+                    theme_text_color="Custom",
+                    text_color=get_color_from_hex(COLOR_CAFE),
+                    on_release=_cerrar_sin_respaldo,
+                ),
+            ],
+        )
+        self._error_dialog.open()
+
+    def _cerrar_app(self):
+        self.stop()
+        Window.close()
 
     def _actualizar_reloj(self, dt):
         ahora = datetime.now()
