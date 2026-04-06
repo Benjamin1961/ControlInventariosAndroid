@@ -5,7 +5,6 @@ KivyMD 1.2.0 + SQLite. Diseño móvil con NavigationDrawer.
 
 import os
 import shutil
-import sys
 
 from kivymd.app import MDApp
 from kivymd.uix.navigationdrawer import (
@@ -25,7 +24,6 @@ from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex
 from kivy.core.window import Window
-from kivy.base import stopTouchApp
 from datetime import datetime
 
 import database
@@ -362,9 +360,11 @@ class PanaderiaApp(MDApp):
         Clock.schedule_once(lambda dt: self._cerrar_app(), 2)
 
     def _cerrar_app(self):
-        stopTouchApp()
-        self.stop()
-        sys.exit(0)
+        try:
+            from android import mActivity  # type: ignore
+            mActivity.finishAndRemoveTask()
+        except Exception:
+            self.stop()
 
     def _actualizar_reloj(self, dt):
         ahora = datetime.now()
