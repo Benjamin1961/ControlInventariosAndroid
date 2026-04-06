@@ -366,20 +366,28 @@ class PanaderiaApp(MDApp):
             return False, str(e)
 
     def _ejecutar_respaldo_y_cerrar(self):
+        # 1. Respaldo síncrono — debe completarse ANTES de cualquier cierre
         ok, resultado = self._hacer_respaldo()
-        if ok:
-            texto_snack = "Respaldo guardado en Descargas"
-        else:
-            texto_snack = f"Sin respaldo: {resultado}"
+        texto_snack = "Respaldo guardado en Descargas" if ok else f"Sin respaldo: {resultado}"
         MDSnackbar(text=texto_snack, duration=2).open()
+
+        # 2. stop() como único mecanismo de cierre; deja que el event loop
+        #    renderice el snackbar al menos un frame antes de detenerse
         Clock.schedule_once(lambda dt: self._cerrar_app(), 2)
 
     def _cerrar_app(self):
+        from kivy.app import App
+        App.get_running_app().stop()
+        # 3. Último recurso: si stop() deja pantalla negra, Android finaliza
+        #    la Activity suavemente 3 segundos después
+        Clock.schedule_once(self._finish_activity, 3)
+
+    def _finish_activity(self, dt):
         try:
             from android import mActivity  # type: ignore
-            mActivity.finishAndRemoveTask()
+            mActivity.finish()
         except Exception:
-            self.stop()
+            pass
 
     # ── Restaurar Backup ───────────────────────────────────────────────────────
 
