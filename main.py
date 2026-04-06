@@ -5,6 +5,7 @@ KivyMD 1.2.0 + SQLite. Diseño móvil con NavigationDrawer.
 
 import os
 import shutil
+import sys
 
 from kivymd.app import MDApp
 from kivymd.uix.navigationdrawer import (
@@ -24,6 +25,7 @@ from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex
 from kivy.core.window import Window
+from kivy.base import stopTouchApp
 from datetime import datetime
 
 import database
@@ -291,7 +293,6 @@ class PanaderiaApp(MDApp):
 
         self._nav_drawer = nav
         self._exit_dialog = None
-        self._error_dialog = None
         self._registrar_pantallas(sm, nav)
 
         # Reloj para fecha/hora en el dashboard
@@ -354,40 +355,16 @@ class PanaderiaApp(MDApp):
     def _ejecutar_respaldo_y_cerrar(self):
         ok, resultado = self._hacer_respaldo()
         if ok:
-            MDSnackbar(text="Respaldo guardado en Descargas", duration=2).open()
-            Clock.schedule_once(lambda dt: self._cerrar_app(), 2.5)
+            texto_snack = "Respaldo guardado en Descargas"
         else:
-            self._mostrar_error_respaldo(resultado)
-
-    def _mostrar_error_respaldo(self, mensaje_error):
-        if self._error_dialog:
-            self._error_dialog.dismiss()
-
-        def _cerrar_sin_respaldo(x):
-            self._error_dialog.dismiss()
-            self._cerrar_app()
-
-        self._error_dialog = MDDialog(
-            title="Error al respaldar",
-            text=f"No se pudo guardar el respaldo:\n{mensaje_error}\n\n¿Deseas cerrar la aplicación de todas formas?",
-            buttons=[
-                MDFlatButton(
-                    text="Cancelar",
-                    on_release=lambda x: self._error_dialog.dismiss(),
-                ),
-                MDFlatButton(
-                    text="Cerrar de todas formas",
-                    theme_text_color="Custom",
-                    text_color=get_color_from_hex(COLOR_CAFE),
-                    on_release=_cerrar_sin_respaldo,
-                ),
-            ],
-        )
-        self._error_dialog.open()
+            texto_snack = f"Sin respaldo: {resultado}"
+        MDSnackbar(text=texto_snack, duration=2).open()
+        Clock.schedule_once(lambda dt: self._cerrar_app(), 2)
 
     def _cerrar_app(self):
+        stopTouchApp()
         self.stop()
-        Window.close()
+        sys.exit(0)
 
     def _actualizar_reloj(self, dt):
         ahora = datetime.now()
