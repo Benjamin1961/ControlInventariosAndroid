@@ -14,9 +14,12 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.toolbar import MDTopAppBar
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
+from kivymd.uix.dialog import MDDialog
+from kivymd.uix.button import MDFlatButton
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex
+from kivy.core.window import Window
 from datetime import datetime
 
 import database
@@ -49,6 +52,7 @@ MDNavigationLayout:
                 MDTopAppBar:
                     title: "Panadería Inventarios"
                     left_action_items: [["menu", lambda x: nav_drawer.set_state("open")]]
+                    right_action_items: [["exit-to-app", lambda x: app.confirmar_salir()]]
                     md_bg_color: app.color_cafe
                     specific_text_color: 1, 1, 1, 1
                     elevation: 4
@@ -173,6 +177,22 @@ MDNavigationLayout:
                 on_release:
                     screen_manager.current = "reportes"
                     nav_drawer.set_state("close")
+
+            # ── Separador ────────────────────────────────────────────────────
+            MDBoxLayout:
+                size_hint_y: None
+                height: "1dp"
+                md_bg_color: 0.75, 0.75, 0.75, 1
+
+            MDNavigationDrawerItem:
+                icon: "exit-to-app"
+                text: "Salir"
+                theme_text_color: "Custom"
+                text_color: 0.8, 0.1, 0.1, 1
+                icon_color: 0.8, 0.1, 0.1, 1
+                on_release:
+                    nav_drawer.set_state("close")
+                    app.confirmar_salir()
 """
 
 
@@ -238,6 +258,7 @@ class PanaderiaApp(MDApp):
         nav = root.ids.nav_drawer
 
         self._nav_drawer = nav
+        self._exit_dialog = None
         self._registrar_pantallas(sm, nav)
 
         # Reloj para fecha/hora en el dashboard
@@ -250,6 +271,39 @@ class PanaderiaApp(MDApp):
     def on_start(self):
         # Garantizar que el drawer esté cerrado cuando la UI esté lista
         self._nav_drawer.set_state("close")
+
+    # ── Salida limpia ──────────────────────────────────────────────────────────
+
+    def confirmar_salir(self):
+        if self._exit_dialog:
+            self._exit_dialog.dismiss()
+
+        def _salir(x):
+            self._exit_dialog.dismiss()
+            self.stop()
+            Window.close()
+
+        self._exit_dialog = MDDialog(
+            title="Salir",
+            text="¿Deseas cerrar la aplicación?",
+            buttons=[
+                MDFlatButton(
+                    text="Cancelar",
+                    on_release=lambda x: self._exit_dialog.dismiss(),
+                ),
+                MDFlatButton(
+                    text="Salir",
+                    theme_text_color="Custom",
+                    text_color=get_color_from_hex(COLOR_CAFE),
+                    on_release=_salir,
+                ),
+            ],
+        )
+        self._exit_dialog.open()
+
+    def on_request_close(self, *args):
+        self.confirmar_salir()
+        return True  # impide el cierre inmediato hasta confirmar
 
     def _actualizar_reloj(self, dt):
         ahora = datetime.now()
