@@ -199,6 +199,19 @@ MDNavigationLayout:
                     app.iniciar_restaurar_backup()
 
             MDNavigationDrawerItem:
+                icon: "database-export"
+                text: "Hacer Respaldo"
+                on_release:
+                    nav_drawer.set_state("close")
+                    app.hacer_respaldo_manual()
+
+            # ── Separador ────────────────────────────────────────────────────
+            MDBoxLayout:
+                size_hint_y: None
+                height: "1dp"
+                md_bg_color: 0.75, 0.75, 0.75, 1
+
+            MDNavigationDrawerItem:
                 icon: "exit-to-app"
                 text: "Salir"
                 theme_text_color: "Custom"
@@ -325,9 +338,10 @@ class PanaderiaApp(MDApp):
         if self._exit_dialog:
             self._exit_dialog.dismiss()
 
-        def _salir(x):
+        def _cerrar(x):
             self._exit_dialog.dismiss()
-            self._ejecutar_respaldo_y_cerrar()
+            from kivy.app import App
+            App.get_running_app().stop()
 
         self._exit_dialog = MDDialog(
             title="Salir",
@@ -338,10 +352,10 @@ class PanaderiaApp(MDApp):
                     on_release=lambda x: self._exit_dialog.dismiss(),
                 ),
                 MDFlatButton(
-                    text="Salir",
+                    text="Cerrar",
                     theme_text_color="Custom",
                     text_color=get_color_from_hex(COLOR_CAFE),
-                    on_release=_salir,
+                    on_release=_cerrar,
                 ),
             ],
         )
@@ -351,7 +365,7 @@ class PanaderiaApp(MDApp):
         self.confirmar_salir()
         return True  # impide el cierre inmediato hasta confirmar
 
-    # ── Respaldo automático ────────────────────────────────────────────────────
+    # ── Respaldo manual ────────────────────────────────────────────────────────
 
     def _hacer_respaldo(self):
         """Copia la BD al directorio de Descargas. Retorna (ok, ruta_o_error)."""
@@ -365,29 +379,13 @@ class PanaderiaApp(MDApp):
         except Exception as e:
             return False, str(e)
 
-    def _ejecutar_respaldo_y_cerrar(self):
-        # 1. Respaldo síncrono — debe completarse ANTES de cualquier cierre
+    def hacer_respaldo_manual(self):
+        """Acción del botón 'Hacer Respaldo': copia la BD y muestra resultado."""
         ok, resultado = self._hacer_respaldo()
-        texto_snack = "Respaldo guardado en Descargas" if ok else f"Sin respaldo: {resultado}"
-        MDSnackbar(text=texto_snack, duration=2).open()
-
-        # 2. stop() como único mecanismo de cierre; deja que el event loop
-        #    renderice el snackbar al menos un frame antes de detenerse
-        Clock.schedule_once(lambda dt: self._cerrar_app(), 2)
-
-    def _cerrar_app(self):
-        from kivy.app import App
-        App.get_running_app().stop()
-        # 3. Último recurso: si stop() deja pantalla negra, Android finaliza
-        #    la Activity suavemente 3 segundos después
-        Clock.schedule_once(self._finish_activity, 3)
-
-    def _finish_activity(self, dt):
-        try:
-            from android import mActivity  # type: ignore
-            mActivity.finish()
-        except Exception:
-            pass
+        if ok:
+            MDSnackbar(text="✓ Respaldo guardado en Descargas", duration=3).open()
+        else:
+            MDSnackbar(text=f"✗ Error al hacer respaldo: {resultado}", duration=4).open()
 
     # ── Restaurar Backup ───────────────────────────────────────────────────────
 
