@@ -7,6 +7,7 @@ import os
 import shutil
 import threading
 
+from kivy.app import App
 from kivymd.app import MDApp
 from kivymd.uix.navigationdrawer import (
     MDNavigationDrawer, MDNavigationDrawerMenu,
@@ -381,75 +382,31 @@ class PanaderiaApp(MDApp):
             return False, str(e)
 
     def hacer_respaldo_manual(self):
-        """Acción del botón 'Hacer Respaldo': copia la BD en hilo separado."""
-        def _respaldo_en_hilo():
+        try:
+            db_path = os.path.join(
+                App.get_running_app().user_data_dir,
+                'inventario_panaderia.db'
+            )
+            if not os.path.isfile(db_path):
+                MDSnackbar(text="✗ BD no encontrada", duration=3).open()
+                return
+            db_size = os.path.getsize(db_path)
+            MDSnackbar(text=f"Iniciando respaldo... {db_size} bytes", duration=2).open()
+        except Exception as e:
+            MDSnackbar(text=f"✗ Error: {str(e)}", duration=3).open()
+            return
+
+        def _copiar(db_path=db_path):
             try:
-                # 1. Solicitar permisos en tiempo de ejecución (Android)
-                try:
-                    from android.permissions import (  # type: ignore
-                        request_permissions, check_permission, Permission,
-                    )
-                    if not check_permission(Permission.WRITE_EXTERNAL_STORAGE):
-                        request_permissions([
-                            Permission.WRITE_EXTERNAL_STORAGE,
-                            Permission.READ_EXTERNAL_STORAGE,
-                        ])
-                except Exception:
-                    pass  # fuera de Android, continuar sin permisos
-
-                # 2. Resolver directorio destino
-                #    Primero: primary_external_storage_path() + Download
-                #    Fallback: getExternalFilesDir() (no requiere permiso)
-                #    Último recurso: helper multiplataforma
-                try:
-                    from android.storage import primary_external_storage_path  # type: ignore
-                    directorio = os.path.join(
-                        primary_external_storage_path(), "Download"
-                    )
-                except Exception:
-                    try:
-                        from android import mActivity  # type: ignore
-                        context = mActivity.getApplicationContext()
-                        directorio = context.getExternalFilesDir(None).getAbsolutePath()
-                    except Exception:
-                        directorio = _directorio_descargas()
-
-                os.makedirs(directorio, exist_ok=True)
-
-                # 3. Obtener ruta real de la BD en tiempo de ejecución
-                from kivy.app import App as _App
-                src = os.path.join(
-                    _App.get_running_app().user_data_dir,
-                    'inventario_panaderia.db'
-                )
-                if not os.path.isfile(src):
-                    raise FileNotFoundError(f"BD no encontrada:\n{src}")
-
-                # Diagnóstico temporal: confirmar ruta y tamaño
-                _size = os.path.getsize(src)
-                Clock.schedule_once(
-                    lambda dt: MDSnackbar(
-                        text=f"BD: {src} ({_size} bytes)", duration=4
-                    ).open(), 0
-                )
-
-                ts  = datetime.now().strftime("%Y-%m-%d_%H-%M")
-                dst = os.path.join(directorio, f"ControlInventarios_backup_{ts}.db")
-                shutil.copy2(src, dst)
-
-                Clock.schedule_once(
-                    lambda dt: MDSnackbar(
-                        text="✓ Respaldo guardado en Descargas", duration=3
-                    ).open(), 0
-                )
+                ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+                dst = os.path.join('/sdcard/Download', f'ControlInventarios_backup_{ts}.db')
+                shutil.copy2(db_path, dst)
+                Clock.schedule_once(lambda dt: MDSnackbar(text="✓ Respaldo guardado en Descargas", duration=3).open(), 0)
             except Exception as e:
-                Clock.schedule_once(
-                    lambda dt: MDSnackbar(
-                        text=f"✗ Error al hacer respaldo: {e}", duration=4
-                    ).open(), 0
-                )
+                Clock.schedule_once(lambda dt: MDSnackbar(text=f"✗ Error al copiar: {str(e)}", duration=4).open(), 0)
 
-        hilo = threading.Thread(target=_respaldo_en_hilo)
+        import threading
+        hilo = threading.Thread(target=_copiar)
         hilo.daemon = True
         hilo.start()
 
