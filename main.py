@@ -388,12 +388,12 @@ class PanaderiaApp(MDApp):
                 'inventario_panaderia.db'
             )
             if not os.path.isfile(db_path):
-                Snackbar(text="✗ BD no encontrada", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
+                snack = Snackbar(); snack.text = "✗ BD no encontrada"; snack.open()
                 return
             db_size = os.path.getsize(db_path)
-            Snackbar(text=f"Iniciando respaldo... {db_size} bytes", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
+            snack = Snackbar(); snack.text = f"Iniciando respaldo... {db_size} bytes"; snack.open()
         except Exception as e:
-            Snackbar(text=f"✗ Error: {str(e)}", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
+            snack = Snackbar(); snack.text = f"✗ Error: {str(e)}"; snack.open()
             return
 
         def _copiar(db_path=db_path):
@@ -401,9 +401,13 @@ class PanaderiaApp(MDApp):
                 ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
                 dst = os.path.join('/sdcard/Download', f'ControlInventarios_backup_{ts}.db')
                 shutil.copy2(db_path, dst)
-                Clock.schedule_once(lambda dt: Snackbar(text="✓ Respaldo guardado en Descargas", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open(), 0)
+                def _ok(dt):
+                    snack = Snackbar(); snack.text = "✓ Respaldo guardado en Descargas"; snack.open()
+                Clock.schedule_once(_ok, 0)
             except Exception as e:
-                Clock.schedule_once(lambda dt: Snackbar(text=f"✗ Error al copiar: {str(e)}", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open(), 0)
+                def _err(dt, msg=str(e)):
+                    snack = Snackbar(); snack.text = f"✗ Error al copiar: {msg}"; snack.open()
+                Clock.schedule_once(_err, 0)
 
         import threading
         hilo = threading.Thread(target=_copiar)
@@ -423,7 +427,7 @@ class PanaderiaApp(MDApp):
             intent.setType("*/*")
             mActivity.startActivityForResult(intent, _REQUEST_CODE_RESTORE)
         except Exception:
-            Snackbar(text="Selector de archivos solo disponible en Android", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
+            snack = Snackbar(); snack.text = "Selector de archivos solo disponible en Android"; snack.open()
 
     def _on_actividad_resultado(self, request_code, result_code, data):
         """Recibe el archivo elegido por el usuario en el selector."""
@@ -507,7 +511,7 @@ class PanaderiaApp(MDApp):
             # 5. Reinicializar esquema / migraciones
             database.inicializar_db()
 
-            Snackbar(text="Base de datos restaurada exitosamente", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
+            snack = Snackbar(); snack.text = "Base de datos restaurada exitosamente"; snack.open()
 
         except Exception as e:
             # Revertir al backup de seguridad si existe
