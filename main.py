@@ -416,10 +416,23 @@ class PanaderiaApp(MDApp):
 
                 os.makedirs(directorio, exist_ok=True)
 
-                # 3. Copiar la BD
-                src = database.DB_PATH
+                # 3. Obtener ruta real de la BD en tiempo de ejecución
+                from kivy.app import App as _App
+                src = os.path.join(
+                    _App.get_running_app().user_data_dir,
+                    'inventario_panaderia.db'
+                )
                 if not os.path.isfile(src):
                     raise FileNotFoundError(f"BD no encontrada:\n{src}")
+
+                # Diagnóstico temporal: confirmar ruta y tamaño
+                _size = os.path.getsize(src)
+                Clock.schedule_once(
+                    lambda dt: MDSnackbar(
+                        text=f"BD: {src} ({_size} bytes)", duration=4
+                    ).open(), 0
+                )
+
                 ts  = datetime.now().strftime("%Y-%m-%d_%H-%M")
                 dst = os.path.join(directorio, f"ControlInventarios_backup_{ts}.db")
                 shutil.copy2(src, dst)
