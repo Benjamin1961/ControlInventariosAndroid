@@ -17,10 +17,10 @@ requirements = python3,kivy==2.3.1,kivymd==1.2.0,pillow==10.1.0,android,filetype
 
 orientation = portrait
 
-android.permissions = READ_MEDIA_IMAGES,READ_MEDIA_VIDEO,READ_MEDIA_AUDIO,WRITE_EXTERNAL_STORAGE,READ_EXTERNAL_STORAGE
+android.permissions = INTERNET,READ_EXTERNAL_STORAGE,WRITE_EXTERNAL_STORAGE,MANAGE_EXTERNAL_STORAGE
 
 android.api = 33
-android.minapi = 21
+android.minapi = 26
 android.sdk = 33
 android.ndk = 25b
 android.ndk_api = 21

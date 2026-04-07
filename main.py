@@ -384,11 +384,46 @@ class PanaderiaApp(MDApp):
         """Acción del botón 'Hacer Respaldo': copia la BD en hilo separado."""
         def _respaldo_en_hilo():
             try:
+                # 1. Solicitar permisos en tiempo de ejecución (Android)
+                try:
+                    from android.permissions import (  # type: ignore
+                        request_permissions, check_permission, Permission,
+                    )
+                    if not check_permission(Permission.WRITE_EXTERNAL_STORAGE):
+                        request_permissions([
+                            Permission.WRITE_EXTERNAL_STORAGE,
+                            Permission.READ_EXTERNAL_STORAGE,
+                        ])
+                except Exception:
+                    pass  # fuera de Android, continuar sin permisos
+
+                # 2. Resolver directorio destino
+                #    Primero: primary_external_storage_path() + Download
+                #    Fallback: getExternalFilesDir() (no requiere permiso)
+                #    Último recurso: helper multiplataforma
+                try:
+                    from android.storage import primary_external_storage_path  # type: ignore
+                    directorio = os.path.join(
+                        primary_external_storage_path(), "Download"
+                    )
+                except Exception:
+                    try:
+                        from android import mActivity  # type: ignore
+                        context = mActivity.getApplicationContext()
+                        directorio = context.getExternalFilesDir(None).getAbsolutePath()
+                    except Exception:
+                        directorio = _directorio_descargas()
+
+                os.makedirs(directorio, exist_ok=True)
+
+                # 3. Copiar la BD
                 src = database.DB_PATH
                 if not os.path.isfile(src):
                     raise FileNotFoundError(f"BD no encontrada:\n{src}")
-                dst = _ruta_backup()
+                ts  = datetime.now().strftime("%Y-%m-%d_%H-%M")
+                dst = os.path.join(directorio, f"ControlInventarios_backup_{ts}.db")
                 shutil.copy2(src, dst)
+
                 Clock.schedule_once(
                     lambda dt: MDSnackbar(
                         text="✓ Respaldo guardado en Descargas", duration=3
