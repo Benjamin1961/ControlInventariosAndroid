@@ -427,23 +427,36 @@ class PanaderiaApp(MDApp):
         """Lista los backups disponibles en Descargas y muestra diálogo de selección."""
         rutas = [
             '/storage/emulated/0/Download',
+            '/storage/emulated/0/Descargas',
             '/sdcard/Download',
-            os.path.expanduser('~/Download'),
+            '/sdcard/Descargas',
         ]
+        snack = Snackbar()
+        snack.text = f"Buscando en {len(rutas)} rutas..."
+        snack.open()
+
         archivos = []
         directorio = None
+        diagnostico = []
         for ruta in rutas:
-            if os.path.isdir(ruta):
+            existe = os.path.isdir(ruta)
+            diagnostico.append(f"{'OK' if existe else '--'} {ruta}")
+            if existe:
                 try:
                     encontrados = [f for f in os.listdir(ruta)
                                    if f.startswith('ControlInventarios_backup_')
                                    and f.endswith('.db')]
+                    diagnostico[-1] += f" ({len(encontrados)} .db)"
                     if encontrados:
                         archivos = sorted(encontrados, reverse=True)
                         directorio = ruta
                         break
-                except Exception:
-                    continue
+                except Exception as ex:
+                    diagnostico[-1] += f" ERR:{ex}"
+
+        snack2 = Snackbar()
+        snack2.text = " | ".join(diagnostico)
+        snack2.open()
 
         if not archivos:
             dlg = [None]
