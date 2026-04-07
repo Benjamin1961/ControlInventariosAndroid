@@ -21,6 +21,7 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
+from kivymd.uix.list import OneLineListItem
 from kivymd.uix.snackbar import Snackbar
 from kivy.lang import Builder
 from kivy.clock import Clock
@@ -423,17 +424,48 @@ class PanaderiaApp(MDApp):
     # ── Restaurar Backup ───────────────────────────────────────────────────────
 
     def iniciar_restaurar_backup(self):
-        """Abre el selector de archivos nativo de Android (ACTION_OPEN_DOCUMENT)."""
+        """Lista los backups disponibles en /sdcard/Download y muestra diálogo de selección."""
+        carpeta = '/sdcard/Download'
         try:
-            from jnius import autoclass          # type: ignore
-            from android import mActivity       # type: ignore
-            Intent   = autoclass('android.content.Intent')
-            intent   = Intent(Intent.ACTION_OPEN_DOCUMENT)
-            intent.addCategory(Intent.CATEGORY_OPENABLE)
-            intent.setType("*/*")
-            mActivity.startActivityForResult(intent, _REQUEST_CODE_RESTORE)
+            archivos = sorted(
+                [f for f in os.listdir(carpeta)
+                 if f.startswith('ControlInventarios_backup_') and f.endswith('.db')],
+                reverse=True,
+            )
         except Exception:
-            snack = Snackbar(); snack.text = "Selector de archivos solo disponible en Android"; snack.open()
+            archivos = []
+
+        if not archivos:
+            dlg = [None]
+            def _cerrar(x):
+                if dlg[0]: dlg[0].dismiss()
+            dlg[0] = MDDialog(
+                title="Sin respaldos",
+                text="No se encontraron respaldos en la carpeta Descargas.",
+                buttons=[MDFlatButton(text="Aceptar", on_release=_cerrar)],
+            )
+            dlg[0].open()
+            return
+
+        dlg = [None]
+
+        def _elegir(path):
+            if dlg[0]: dlg[0].dismiss()
+            self._confirmar_restaurar_path(path)
+
+        items = []
+        for nombre in archivos:
+            path = os.path.join(carpeta, nombre)
+            item = OneLineListItem(text=nombre)
+            item.bind(on_release=lambda x, p=path: _elegir(p))
+            items.append(item)
+
+        dlg[0] = MDDialog(
+            title="Seleccionar respaldo",
+            type="simple",
+            items=items,
+        )
+        dlg[0].open()
 
     def _on_actividad_resultado(self, request_code, result_code, data):
         """Recibe el archivo elegido por el usuario en el selector."""
@@ -471,6 +503,52 @@ class PanaderiaApp(MDApp):
             ],
         )
         self._restauracion_dialog.open()
+
+    def _confirmar_restaurar_path(self, path):
+        if self._restauracion_dialog:
+            self._restauracion_dialog.dismiss()
+
+        def _aceptar(x):
+            self._restauracion_dialog.dismiss()
+            self._ejecutar_restauracion_path(path)
+
+        self._restauracion_dialog = MDDialog(
+            title="¿Restaurar backup?",
+            text=(
+                "¿Restaurar este backup? Esto reemplazará TODOS los datos actuales.\n"
+                "Esta acción no se puede deshacer."
+            ),
+            buttons=[
+                MDFlatButton(
+                    text="Cancelar",
+                    on_release=lambda x: self._restauracion_dialog.dismiss(),
+                ),
+                MDFlatButton(
+                    text="Restaurar",
+                    theme_text_color="Custom",
+                    text_color=get_color_from_hex(COLOR_CAFE),
+                    on_release=_aceptar,
+                ),
+            ],
+        )
+        self._restauracion_dialog.open()
+
+    def _ejecutar_restauracion_path(self, path):
+        try:
+            if not self._es_sqlite_valido(path):
+                raise ValueError(
+                    "El archivo seleccionado no es una base de datos SQLite válida."
+                )
+            db_path = os.path.join(
+                App.get_running_app().user_data_dir,
+                'inventario_panaderia.db'
+            )
+            shutil.copy2(path, db_path)
+            snack = Snackbar()
+            snack.text = "✓ Base de datos restaurada. Reinicie la app."
+            snack.open()
+        except Exception as e:
+            self._mostrar_error_restauracion(str(e))
 
     def _copiar_uri_a_temp(self, uri):
         """
