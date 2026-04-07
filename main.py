@@ -424,16 +424,26 @@ class PanaderiaApp(MDApp):
     # ── Restaurar Backup ───────────────────────────────────────────────────────
 
     def iniciar_restaurar_backup(self):
-        """Lista los backups disponibles en /sdcard/Download y muestra diálogo de selección."""
-        carpeta = '/sdcard/Download'
-        try:
-            archivos = sorted(
-                [f for f in os.listdir(carpeta)
-                 if f.startswith('ControlInventarios_backup_') and f.endswith('.db')],
-                reverse=True,
-            )
-        except Exception:
-            archivos = []
+        """Lista los backups disponibles en Descargas y muestra diálogo de selección."""
+        rutas = [
+            '/storage/emulated/0/Download',
+            '/sdcard/Download',
+            os.path.expanduser('~/Download'),
+        ]
+        archivos = []
+        directorio = None
+        for ruta in rutas:
+            if os.path.isdir(ruta):
+                try:
+                    encontrados = [f for f in os.listdir(ruta)
+                                   if f.startswith('ControlInventarios_backup_')
+                                   and f.endswith('.db')]
+                    if encontrados:
+                        archivos = sorted(encontrados, reverse=True)
+                        directorio = ruta
+                        break
+                except Exception:
+                    continue
 
         if not archivos:
             dlg = [None]
@@ -455,7 +465,7 @@ class PanaderiaApp(MDApp):
 
         items = []
         for nombre in archivos:
-            path = os.path.join(carpeta, nombre)
+            path = os.path.join(directorio, nombre)
             item = OneLineListItem(text=nombre)
             item.bind(on_release=lambda x, p=path: _elegir(p))
             items.append(item)
