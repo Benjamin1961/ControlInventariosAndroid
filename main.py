@@ -21,7 +21,7 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
-from kivymd.uix.snackbar import MDSnackbar
+from kivymd.uix.snackbar import Snackbar
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex
@@ -388,12 +388,12 @@ class PanaderiaApp(MDApp):
                 'inventario_panaderia.db'
             )
             if not os.path.isfile(db_path):
-                MDSnackbar(text="✗ BD no encontrada", duration=3).open()
+                Snackbar(text="✗ BD no encontrada", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
                 return
             db_size = os.path.getsize(db_path)
-            MDSnackbar(text=f"Iniciando respaldo... {db_size} bytes", duration=2).open()
+            Snackbar(text=f"Iniciando respaldo... {db_size} bytes", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
         except Exception as e:
-            MDSnackbar(text=f"✗ Error: {str(e)}", duration=3).open()
+            Snackbar(text=f"✗ Error: {str(e)}", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
             return
 
         def _copiar(db_path=db_path):
@@ -401,9 +401,9 @@ class PanaderiaApp(MDApp):
                 ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
                 dst = os.path.join('/sdcard/Download', f'ControlInventarios_backup_{ts}.db')
                 shutil.copy2(db_path, dst)
-                Clock.schedule_once(lambda dt: MDSnackbar(text="✓ Respaldo guardado en Descargas", duration=3).open(), 0)
+                Clock.schedule_once(lambda dt: Snackbar(text="✓ Respaldo guardado en Descargas", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open(), 0)
             except Exception as e:
-                Clock.schedule_once(lambda dt: MDSnackbar(text=f"✗ Error al copiar: {str(e)}", duration=4).open(), 0)
+                Clock.schedule_once(lambda dt: Snackbar(text=f"✗ Error al copiar: {str(e)}", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open(), 0)
 
         import threading
         hilo = threading.Thread(target=_copiar)
@@ -423,10 +423,7 @@ class PanaderiaApp(MDApp):
             intent.setType("*/*")
             mActivity.startActivityForResult(intent, _REQUEST_CODE_RESTORE)
         except Exception:
-            MDSnackbar(
-                text="Selector de archivos solo disponible en Android",
-                duration=3,
-            ).open()
+            Snackbar(text="Selector de archivos solo disponible en Android", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
 
     def _on_actividad_resultado(self, request_code, result_code, data):
         """Recibe el archivo elegido por el usuario en el selector."""
@@ -510,7 +507,7 @@ class PanaderiaApp(MDApp):
             # 5. Reinicializar esquema / migraciones
             database.inicializar_db()
 
-            MDSnackbar(text="Base de datos restaurada exitosamente", duration=3).open()
+            Snackbar(text="Base de datos restaurada exitosamente", snackbar_x="10dp", snackbar_y="10dp", size_hint_x=0.9).open()
 
         except Exception as e:
             # Revertir al backup de seguridad si existe
