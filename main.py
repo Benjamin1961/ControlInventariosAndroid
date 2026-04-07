@@ -396,18 +396,24 @@ class PanaderiaApp(MDApp):
             snack = Snackbar(); snack.text = f"✗ Error: {str(e)}"; snack.open()
             return
 
+        def _ok(dt):
+            snack = Snackbar()
+            snack.text = "✓ Respaldo guardado en Descargas"
+            snack.open()
+
+        def _err(dt, msg=""):
+            snack = Snackbar()
+            snack.text = f"✗ Error: {msg}"
+            snack.open()
+
         def _copiar(db_path=db_path):
             try:
                 ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
                 dst = os.path.join('/sdcard/Download', f'ControlInventarios_backup_{ts}.db')
                 shutil.copy2(db_path, dst)
-                def _ok(dt):
-                    snack = Snackbar(); snack.text = "✓ Respaldo guardado en Descargas"; snack.open()
                 Clock.schedule_once(_ok, 0)
             except Exception as e:
-                def _err(dt, msg=str(e)):
-                    snack = Snackbar(); snack.text = f"✗ Error al copiar: {msg}"; snack.open()
-                Clock.schedule_once(_err, 0)
+                Clock.schedule_once(lambda dt: _err(dt, msg=str(e)), 0)
 
         import threading
         hilo = threading.Thread(target=_copiar)
