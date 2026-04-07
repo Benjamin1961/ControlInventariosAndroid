@@ -5,6 +5,7 @@ KivyMD 1.2.0 + SQLite. Diseño móvil con NavigationDrawer.
 
 import os
 import shutil
+import threading
 
 from kivymd.app import MDApp
 from kivymd.uix.navigationdrawer import (
@@ -380,12 +381,29 @@ class PanaderiaApp(MDApp):
             return False, str(e)
 
     def hacer_respaldo_manual(self):
-        """Acción del botón 'Hacer Respaldo': copia la BD y muestra resultado."""
-        ok, resultado = self._hacer_respaldo()
-        if ok:
-            MDSnackbar(text="✓ Respaldo guardado en Descargas", duration=3).open()
-        else:
-            MDSnackbar(text=f"✗ Error al hacer respaldo: {resultado}", duration=4).open()
+        """Acción del botón 'Hacer Respaldo': copia la BD en hilo separado."""
+        def _respaldo_en_hilo():
+            try:
+                src = database.DB_PATH
+                if not os.path.isfile(src):
+                    raise FileNotFoundError(f"BD no encontrada:\n{src}")
+                dst = _ruta_backup()
+                shutil.copy2(src, dst)
+                Clock.schedule_once(
+                    lambda dt: MDSnackbar(
+                        text="✓ Respaldo guardado en Descargas", duration=3
+                    ).open(), 0
+                )
+            except Exception as e:
+                Clock.schedule_once(
+                    lambda dt: MDSnackbar(
+                        text=f"✗ Error al hacer respaldo: {e}", duration=4
+                    ).open(), 0
+                )
+
+        hilo = threading.Thread(target=_respaldo_en_hilo)
+        hilo.daemon = True
+        hilo.start()
 
     # ── Restaurar Backup ───────────────────────────────────────────────────────
 
