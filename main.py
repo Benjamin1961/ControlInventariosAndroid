@@ -21,8 +21,9 @@ from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.label import MDLabel
 from kivymd.uix.dialog import MDDialog
 from kivymd.uix.button import MDFlatButton
-from kivymd.uix.list import OneLineListItem
-from kivymd.uix.snackbar import Snackbar
+from kivymd.uix.list import OneLineListItem, MDList
+from kivymd.uix.snackbar import MDSnackbar
+from kivy.uix.scrollview import ScrollView
 from kivy.lang import Builder
 from kivy.clock import Clock
 from kivy.utils import get_color_from_hex
@@ -327,6 +328,9 @@ class PanaderiaApp(MDApp):
 
         return root
 
+    def _snack(self, texto):
+        MDSnackbar(MDLabel(text=texto)).open()
+
     def on_start(self):
         self._nav_drawer.set_state("close")
         try:
@@ -389,23 +393,19 @@ class PanaderiaApp(MDApp):
                 'inventario_panaderia.db'
             )
             if not os.path.isfile(db_path):
-                snack = Snackbar(); snack.text = "✗ BD no encontrada"; snack.open()
+                self._snack("✗ BD no encontrada")
                 return
             db_size = os.path.getsize(db_path)
-            snack = Snackbar(); snack.text = f"Iniciando respaldo... {db_size} bytes"; snack.open()
+            self._snack(f"Iniciando respaldo... {db_size} bytes")
         except Exception as e:
-            snack = Snackbar(); snack.text = f"✗ Error: {str(e)}"; snack.open()
+            self._snack(f"✗ Error: {str(e)}")
             return
 
         def _ok(dt):
-            snack = Snackbar()
-            snack.text = "✓ Respaldo guardado en Descargas"
-            snack.open()
+            self._snack("✓ Respaldo guardado en Descargas")
 
         def _err(dt, msg=""):
-            snack = Snackbar()
-            snack.text = f"✗ Error: {msg}"
-            snack.open()
+            self._snack(f"✗ Error: {msg}")
 
         def _copiar(db_path=db_path):
             try:
@@ -431,9 +431,7 @@ class PanaderiaApp(MDApp):
             '/sdcard/Download',
             '/sdcard/Descargas',
         ]
-        snack = Snackbar()
-        snack.text = f"Buscando en {len(rutas)} rutas..."
-        snack.open()
+        self._snack(f"Buscando en {len(rutas)} rutas...")
 
         archivos = []
         directorio = None
@@ -454,9 +452,7 @@ class PanaderiaApp(MDApp):
                 except Exception as ex:
                     diagnostico[-1] += f" ERR:{ex}"
 
-        snack2 = Snackbar()
-        snack2.text = " | ".join(diagnostico)
-        snack2.open()
+        self._snack(" | ".join(diagnostico))
 
         if not archivos:
             dlg = [None]
@@ -476,17 +472,20 @@ class PanaderiaApp(MDApp):
             if dlg[0]: dlg[0].dismiss()
             self._confirmar_restaurar_path(path)
 
-        items = []
+        lista = MDList()
         for nombre in archivos:
             path = os.path.join(directorio, nombre)
             item = OneLineListItem(text=nombre)
             item.bind(on_release=lambda x, p=path: _elegir(p))
-            items.append(item)
+            lista.add_widget(item)
+
+        scroll = ScrollView(size_hint_y=None, height="300dp")
+        scroll.add_widget(lista)
 
         dlg[0] = MDDialog(
             title="Seleccionar respaldo",
-            type="simple",
-            items=items,
+            type="custom",
+            content_cls=scroll,
         )
         dlg[0].open()
 
@@ -567,9 +566,7 @@ class PanaderiaApp(MDApp):
                 'inventario_panaderia.db'
             )
             shutil.copy2(path, db_path)
-            snack = Snackbar()
-            snack.text = "✓ Base de datos restaurada. Reinicie la app."
-            snack.open()
+            self._snack("✓ Base de datos restaurada. Reinicie la app.")
         except Exception as e:
             self._mostrar_error_restauracion(str(e))
 
@@ -618,7 +615,7 @@ class PanaderiaApp(MDApp):
             # 5. Reinicializar esquema / migraciones
             database.inicializar_db()
 
-            snack = Snackbar(); snack.text = "Base de datos restaurada exitosamente"; snack.open()
+            self._snack("Base de datos restaurada exitosamente")
 
         except Exception as e:
             # Revertir al backup de seguridad si existe
