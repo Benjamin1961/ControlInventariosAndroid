@@ -32,6 +32,12 @@ from datetime import datetime
 
 import database
 
+try:
+    from android.permissions import request_permissions, Permission  # type: ignore
+    ANDROID = True
+except ImportError:
+    ANDROID = False
+
 # Colores corporativos
 COLOR_CAFE   = "#3E2723"   # fondo barra superior
 COLOR_DORADO = "#FFA000"   # acento
@@ -387,107 +393,134 @@ class PanaderiaApp(MDApp):
             return False, str(e)
 
     def hacer_respaldo_manual(self):
-        try:
-            db_path = os.path.join(
-                App.get_running_app().user_data_dir,
-                'inventario_panaderia.db'
-            )
-            if not os.path.isfile(db_path):
-                self._snack("✗ BD no encontrada")
-                return
-            db_size = os.path.getsize(db_path)
-            self._snack(f"Iniciando respaldo... {db_size} bytes")
-        except Exception as e:
-            self._snack(f"✗ Error: {str(e)}")
-            return
-
-        def _ok(dt):
-            self._snack("✓ Respaldo guardado en Descargas")
-
-        def _err(dt, msg=""):
-            self._snack(f"✗ Error: {msg}")
-
-        def _copiar(db_path=db_path):
+        def _ejecutar():
             try:
-                ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
-                dst = os.path.join('/sdcard/Download', f'ControlInventarios_backup_{ts}.db')
-                shutil.copy2(db_path, dst)
-                Clock.schedule_once(_ok, 0)
+                db_path = os.path.join(
+                    App.get_running_app().user_data_dir,
+                    'inventario_panaderia.db'
+                )
+                if not os.path.isfile(db_path):
+                    self._snack("✗ BD no encontrada")
+                    return
+                db_size = os.path.getsize(db_path)
+                self._snack(f"Iniciando respaldo... {db_size} bytes")
             except Exception as e:
-                Clock.schedule_once(lambda dt: _err(dt, msg=str(e)), 0)
+                self._snack(f"✗ Error: {str(e)}")
+                return
 
-        import threading
-        hilo = threading.Thread(target=_copiar)
-        hilo.daemon = True
-        hilo.start()
+            def _ok(dt):
+                self._snack("✓ Respaldo guardado en Descargas")
+
+            def _err(dt, msg=""):
+                self._snack(f"✗ Error: {msg}")
+
+            def _copiar(db_path=db_path):
+                try:
+                    ts = datetime.now().strftime("%Y-%m-%d_%H-%M")
+                    dst = os.path.join('/sdcard/Download', f'ControlInventarios_backup_{ts}.db')
+                    shutil.copy2(db_path, dst)
+                    Clock.schedule_once(_ok, 0)
+                except Exception as e:
+                    Clock.schedule_once(lambda dt: _err(dt, msg=str(e)), 0)
+
+            hilo = threading.Thread(target=_copiar)
+            hilo.daemon = True
+            hilo.start()
+
+        if ANDROID:
+            permisos = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
+
+            def _con_permisos(permissions, grants):
+                if all(grants):
+                    _ejecutar()
+                else:
+                    self._snack("✗ Permiso de almacenamiento denegado")
+
+            request_permissions(permisos, _con_permisos)
+        else:
+            _ejecutar()
 
     # ── Restaurar Backup ───────────────────────────────────────────────────────
 
     def iniciar_restaurar_backup(self):
         """Lista los backups disponibles en Descargas y muestra diálogo de selección."""
-        rutas = [
-            '/storage/emulated/0/Download',
-            '/storage/emulated/0/Descargas',
-            '/sdcard/Download',
-            '/sdcard/Descargas',
-        ]
-        self._snack(f"Buscando en {len(rutas)} rutas...")
+        def _ejecutar():
+            rutas = [
+                '/storage/emulated/0/Download',
+                '/storage/emulated/0/Descargas',
+                '/sdcard/Download',
+                '/sdcard/Descargas',
+            ]
+            self._snack(f"Buscando en {len(rutas)} rutas...")
 
-        archivos = []
-        directorio = None
-        diagnostico = []
-        for ruta in rutas:
-            existe = os.path.isdir(ruta)
-            diagnostico.append(f"{'OK' if existe else '--'} {ruta}")
-            if existe:
-                try:
-                    encontrados = [f for f in os.listdir(ruta)
-                                   if f.startswith('ControlInventarios_backup_')
-                                   and f.endswith('.db')]
-                    diagnostico[-1] += f" ({len(encontrados)} .db)"
-                    if encontrados:
-                        archivos = sorted(encontrados, reverse=True)
-                        directorio = ruta
-                        break
-                except Exception as ex:
-                    diagnostico[-1] += f" ERR:{ex}"
+            archivos = []
+            directorio = None
+            diagnostico = []
+            for ruta in rutas:
+                existe = os.path.isdir(ruta)
+                diagnostico.append(f"{'OK' if existe else '--'} {ruta}")
+                if existe:
+                    try:
+                        encontrados = [f for f in os.listdir(ruta)
+                                       if f.startswith('ControlInventarios_backup_')
+                                       and f.endswith('.db')]
+                        diagnostico[-1] += f" ({len(encontrados)} .db)"
+                        if encontrados:
+                            archivos = sorted(encontrados, reverse=True)
+                            directorio = ruta
+                            break
+                    except Exception as ex:
+                        diagnostico[-1] += f" ERR:{ex}"
 
-        self._snack(" | ".join(diagnostico))
+            self._snack(" | ".join(diagnostico))
 
-        if not archivos:
+            if not archivos:
+                dlg = [None]
+                def _cerrar(x):
+                    if dlg[0]: dlg[0].dismiss()
+                dlg[0] = MDDialog(
+                    title="Sin respaldos",
+                    text="No se encontraron respaldos en la carpeta Descargas.",
+                    buttons=[MDFlatButton(text="Aceptar", on_release=_cerrar)],
+                )
+                dlg[0].open()
+                return
+
             dlg = [None]
-            def _cerrar(x):
+
+            def _elegir(path):
                 if dlg[0]: dlg[0].dismiss()
+                self._confirmar_restaurar_path(path)
+
+            lista = MDList()
+            for nombre in archivos:
+                path = os.path.join(directorio, nombre)
+                item = OneLineListItem(text=nombre)
+                item.bind(on_release=lambda x, p=path: _elegir(p))
+                lista.add_widget(item)
+
+            scroll = ScrollView(size_hint_y=None, height="300dp")
+            scroll.add_widget(lista)
+
             dlg[0] = MDDialog(
-                title="Sin respaldos",
-                text="No se encontraron respaldos en la carpeta Descargas.",
-                buttons=[MDFlatButton(text="Aceptar", on_release=_cerrar)],
+                title="Seleccionar respaldo",
+                type="custom",
+                content_cls=scroll,
             )
             dlg[0].open()
-            return
 
-        dlg = [None]
+        if ANDROID:
+            permisos = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
 
-        def _elegir(path):
-            if dlg[0]: dlg[0].dismiss()
-            self._confirmar_restaurar_path(path)
+            def _con_permisos(permissions, grants):
+                if all(grants):
+                    _ejecutar()
+                else:
+                    self._snack("✗ Permiso de almacenamiento denegado")
 
-        lista = MDList()
-        for nombre in archivos:
-            path = os.path.join(directorio, nombre)
-            item = OneLineListItem(text=nombre)
-            item.bind(on_release=lambda x, p=path: _elegir(p))
-            lista.add_widget(item)
-
-        scroll = ScrollView(size_hint_y=None, height="300dp")
-        scroll.add_widget(lista)
-
-        dlg[0] = MDDialog(
-            title="Seleccionar respaldo",
-            type="custom",
-            content_cls=scroll,
-        )
-        dlg[0].open()
+            request_permissions(permisos, _con_permisos)
+        else:
+            _ejecutar()
 
     def _on_actividad_resultado(self, request_code, result_code, data):
         """Recibe el archivo elegido por el usuario en el selector."""
