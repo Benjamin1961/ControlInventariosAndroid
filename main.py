@@ -34,6 +34,7 @@ import database
 
 try:
     from android.permissions import request_permissions, Permission  # type: ignore
+    from android import mActivity  # type: ignore
     ANDROID = True
 except ImportError:
     ANDROID = False
@@ -428,15 +429,19 @@ class PanaderiaApp(MDApp):
             hilo.start()
 
         if ANDROID:
-            permisos = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
-
-            def _con_permisos(permissions, grants):
-                if all(grants):
-                    _ejecutar()
-                else:
-                    self._snack("✗ Permiso de almacenamiento denegado")
-
-            request_permissions(permisos, _con_permisos)
+            from jnius import autoclass  # type: ignore
+            Environment = autoclass('android.os.Environment')
+            if not Environment.isExternalStorageManager():
+                Settings = autoclass('android.provider.Settings')
+                Intent = autoclass('android.content.Intent')
+                Uri = autoclass('android.net.Uri')
+                intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                uri = Uri.parse("package:org.benjamin.panaderiainventarios")
+                intent.setData(uri)
+                mActivity.startActivity(intent)
+                self._snack("Concedé el permiso y volvé a intentar")
+                return
+            _ejecutar()
         else:
             _ejecutar()
 
@@ -510,15 +515,19 @@ class PanaderiaApp(MDApp):
             dlg[0].open()
 
         if ANDROID:
-            permisos = [Permission.READ_EXTERNAL_STORAGE, Permission.WRITE_EXTERNAL_STORAGE]
-
-            def _con_permisos(permissions, grants):
-                if all(grants):
-                    _ejecutar()
-                else:
-                    self._snack("✗ Permiso de almacenamiento denegado")
-
-            request_permissions(permisos, _con_permisos)
+            from jnius import autoclass  # type: ignore
+            Environment = autoclass('android.os.Environment')
+            if not Environment.isExternalStorageManager():
+                Settings = autoclass('android.provider.Settings')
+                Intent = autoclass('android.content.Intent')
+                Uri = autoclass('android.net.Uri')
+                intent = Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
+                uri = Uri.parse("package:org.benjamin.panaderiainventarios")
+                intent.setData(uri)
+                mActivity.startActivity(intent)
+                self._snack("Concedé el permiso y volvé a intentar")
+                return
+            _ejecutar()
         else:
             _ejecutar()
 
