@@ -30,9 +30,27 @@ _ROJO   = get_color_from_hex("#B71C1C")
 # ─── Opciones fijas de dropdowns ─────────────────────────────────────────────
 UNIDADES = ["kg", "g", "lb", "oz", "L", "ml", "unidad", "docena", "paquete"]
 CATEGORIAS = [
-    "Harinas", "Lácteos", "Huevos", "Azúcares",
-    "Grasas", "Levaduras", "Frutas", "Esencias",
-    "Empaques", "Otros",
+    # Requeridas
+    "Harinas",
+    "Levaduras",
+    "Agua y Sal",
+    "Azúcares y Edulcorantes",
+    "Huevos",
+    "Aditivos y Coadyuvantes",
+    "Grasas",
+    "Leche y Productos Lácteos",
+    "Cacao, Chocolates y Sucedáneos",
+    "Frutas y derivados",
+    "Frutos secos",
+    # Heredadas (se conservan para no romper datos existentes)
+    "Lácteos",
+    "Azúcares",
+    "Frutas",
+    "Esencias",
+    "Empaques",
+    "Otros",
+    # Categoría personalizada
+    "Otra",
 ]
 
 
@@ -41,17 +59,18 @@ CATEGORIAS = [
 class _SelectorDropdown(MDBoxLayout):
     """Campo selector que muestra un MDDropdownMenu al tocar."""
 
-    def __init__(self, hint: str, opciones: list, **kwargs):
+    def __init__(self, hint: str, opciones: list, on_change=None, **kwargs):
         super().__init__(
             orientation="vertical",
             size_hint_y=None,
             height=dp(56),
             **kwargs,
         )
-        self._hint    = hint
+        self._hint     = hint
         self._opciones = opciones
-        self._menu    = None
-        self.valor    = ""
+        self._menu     = None
+        self._on_change = on_change
+        self.valor     = ""
 
         self._caja = MDBoxLayout(
             orientation="horizontal",
@@ -100,10 +119,14 @@ class _SelectorDropdown(MDBoxLayout):
         self._lbl.theme_text_color = "Primary"
         if self._menu:
             self._menu.dismiss()
+        if self._on_change:
+            self._on_change(valor)
 
     def set_valor(self, valor: str):
         if valor:
-            self._seleccionar(valor)
+            self.valor = valor
+            self._lbl.text = valor
+            self._lbl.theme_text_color = "Primary"
 
 
 # ─── Fila de la lista ─────────────────────────────────────────────────────────
@@ -313,8 +336,30 @@ class Pantalla(PantallaBase):
         self._sel_unidad = _SelectorDropdown(hint="Unidad de medida *", opciones=UNIDADES)
         self._sel_unidad.set_valor(datos.get("unidad_medida", ""))
 
-        self._sel_categoria = _SelectorDropdown(hint="Categoría", opciones=CATEGORIAS)
-        self._sel_categoria.set_valor(datos.get("categoria", "") or "")
+        self._tf_categoria_custom = MDTextField(
+            hint_text="Escribí la categoría personalizada *",
+            size_hint_y=None,
+            height=0,
+            opacity=0,
+        )
+
+        def _on_categoria_change(valor):
+            es_otra = (valor == "Otra")
+            self._tf_categoria_custom.height   = dp(68) if es_otra else 0
+            self._tf_categoria_custom.opacity  = 1 if es_otra else 0
+
+        self._sel_categoria = _SelectorDropdown(
+            hint="Categoría", opciones=CATEGORIAS, on_change=_on_categoria_change
+        )
+        cat_actual = datos.get("categoria", "") or ""
+        if cat_actual and cat_actual not in CATEGORIAS:
+            # Categoría personalizada guardada previamente
+            self._sel_categoria.set_valor("Otra")
+            self._tf_categoria_custom.height  = dp(68)
+            self._tf_categoria_custom.opacity = 1
+            self._tf_categoria_custom.text    = cat_actual
+        else:
+            self._sel_categoria.set_valor(cat_actual)
 
         provs = self._cargar_proveedores()
         self._prov_map = {p["nombre"]: p["id"] for p in provs}
@@ -334,7 +379,8 @@ class Pantalla(PantallaBase):
             padding=[dp(4), dp(8), dp(4), dp(8)], adaptive_height=True,
         )
         for w in [self._tf_nombre, self._tf_desc, self._sel_unidad,
-                  self._tf_stock_min, self._sel_categoria, self._sel_proveedor]:
+                  self._tf_stock_min, self._sel_categoria,
+                  self._tf_categoria_custom, self._sel_proveedor]:
             inner.add_widget(w)
 
         scroll_form = MDScrollView(size_hint_y=None, height=Window.height * 0.55, do_scroll_x=False)
@@ -380,7 +426,13 @@ class Pantalla(PantallaBase):
             self.show_snack("El stock mínimo debe ser un número")
             return
 
-        categoria = self._sel_categoria.valor or None
+        if self._sel_categoria.valor == "Otra":
+            categoria = self._tf_categoria_custom.text.strip() or None
+            if not categoria:
+                self.show_snack("Escribí el nombre de la categoría personalizada")
+                return
+        else:
+            categoria = self._sel_categoria.valor or None
         nombre_prov = self._sel_proveedor.valor
         proveedor_id = self._prov_map.get(nombre_prov) if nombre_prov and nombre_prov != "— Ninguno —" else None
         desc = self._tf_desc.text.strip() or None
