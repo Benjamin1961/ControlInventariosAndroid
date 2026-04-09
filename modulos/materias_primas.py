@@ -220,7 +220,7 @@ class _FilaMateria(RecycleDataViewBehavior, MDBoxLayout):
         min_stk = data.get("stock_minimo") or 0
         stock   = data.get("stock_actual", 0) or 0
 
-        self._item_id     = data.get("id")
+        self._item_id     = int(data.get("id", 0))
         self._cb_editar   = rv.on_editar
         self._cb_eliminar = rv.on_eliminar
 
@@ -364,7 +364,7 @@ class Pantalla(PantallaBase):
                 ORDER   BY mp.nombre COLLATE NOCASE
             """).fetchall()
             conn.close()
-            resultado = [dict(r) for r in rows]
+            resultado = [{**dict(r), "id": str(r["id"])} for r in rows]
             Clock.schedule_once(lambda dt: self._on_datos_cargados(resultado), 0)
 
         threading.Thread(target=_fetch, daemon=True).start()
