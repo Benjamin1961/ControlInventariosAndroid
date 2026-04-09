@@ -13,6 +13,7 @@ from kivy.core.window import Window
 from kivy.uix.recycleview import RecycleView
 from kivy.uix.recycleboxlayout import RecycleBoxLayout
 from kivy.uix.recycleview.views import RecycleDataViewBehavior
+from kivy.logger import Logger
 
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
@@ -143,13 +144,13 @@ class _FilaMateria(RecycleDataViewBehavior, MDBoxLayout):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(
-            orientation="horizontal",
-            size_hint_y=None,
-            height=dp(72),
-            padding=[dp(8), dp(4), dp(4), dp(4)],
-            spacing=dp(4),
-        )
+        # Defaults que RecycleView puede sobrescribir vía kwargs
+        kwargs.setdefault("orientation", "horizontal")
+        kwargs.setdefault("size_hint_y", None)
+        kwargs.setdefault("height", dp(72))
+        kwargs.setdefault("padding", [dp(8), dp(4), dp(4), dp(4)])
+        kwargs.setdefault("spacing", dp(4))
+        super().__init__(**kwargs)
 
         # Avatar
         self._avatar_box = MDBoxLayout(
@@ -250,8 +251,10 @@ class _ListaRV(RecycleView):
         super().__init__(do_scroll_x=False, **kwargs)
         self.on_editar   = on_editar
         self.on_eliminar = on_eliminar
-        self.viewclass   = _FilaMateria
 
+        # IMPORTANTE: agregar el layout manager ANTES de asignar viewclass.
+        # Kivy solo propaga viewclass al layout_manager si este ya existe
+        # en el momento de la asignación.
         rbl = RecycleBoxLayout(
             default_size=(None, dp(72)),
             default_size_hint=(1, None),
@@ -260,6 +263,8 @@ class _ListaRV(RecycleView):
         )
         rbl.bind(minimum_height=rbl.setter("height"))
         self.add_widget(rbl)
+
+        self.viewclass = _FilaMateria   # asignar DESPUÉS del add_widget
 
 
 # ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -366,12 +371,14 @@ class Pantalla(PantallaBase):
 
     def _on_datos_cargados(self, rows):
         """Callback del hilo — se ejecuta en el hilo principal via Clock."""
+        Logger.debug(f"MateriasPrimas: _on_datos_cargados — {len(rows)} registros")
         self._cache_materias = rows
         self._todos = rows
         # Aplicar filtro activo si el usuario escribió mientras cargaba
         texto = self._tf_buscar.text.strip().lower()
         if texto:
-            self._renderizar([r for r in rows if texto in r["nombre"].lower()])
+            filtrados = [r for r in rows if texto in r["nombre"].lower()]
+            self._renderizar(filtrados)
         else:
             self._renderizar(rows)
 
@@ -387,20 +394,27 @@ class Pantalla(PantallaBase):
     # ── Renderizado con RecycleView ───────────────────────────────────────────
 
     def _renderizar(self, rows):
+        Logger.debug(
+            f"MateriasPrimas: _renderizar — {len(rows)} filas | "
+            f"rv.size={getattr(self._rv, 'size', '?')} | "
+            f"rv.viewclass={getattr(self._rv, 'viewclass', '?')}"
+        )
         if rows:
-            self._rv.data         = rows
-            self._rv.size_hint_y  = 1
-            self._rv.opacity      = 1
+            self._rv.data           = rows
+            self._rv.size_hint_y    = 1
+            self._rv.opacity        = 1
             self._vacio.size_hint_y = None
-            self._vacio.height    = 0
-            self._vacio.opacity   = 0
+            self._vacio.height      = 0
+            self._vacio.opacity     = 0
+            # Forzar refresco del viewport si el tamaño cambió
+            Clock.schedule_once(lambda dt: self._rv.refresh_from_data(), 0)
         else:
-            self._rv.data         = []
-            self._rv.size_hint_y  = None
-            self._rv.height       = 0
-            self._rv.opacity      = 0
+            self._rv.data           = []
+            self._rv.size_hint_y    = None
+            self._rv.height         = 0
+            self._rv.opacity        = 0
             self._vacio.size_hint_y = 1
-            self._vacio.opacity   = 1
+            self._vacio.opacity     = 1
 
     # ── Formulario ───────────────────────────────────────────────────────────
 
