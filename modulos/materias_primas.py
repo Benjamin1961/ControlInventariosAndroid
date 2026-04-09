@@ -3,11 +3,16 @@ modulos/materias_primas.py — Gestión completa de materias primas.
 KivyMD 1.2.0 compatible.
 """
 
+import threading
+
 from kivy.metrics import dp
 from kivy.utils import get_color_from_hex
 from kivy.clock import Clock
 from kivy.uix.widget import Widget
 from kivy.core.window import Window
+from kivy.uix.recycleview import RecycleView
+from kivy.uix.recycleboxlayout import RecycleBoxLayout
+from kivy.uix.recycleview.views import RecycleDataViewBehavior
 
 from kivymd.uix.boxlayout import MDBoxLayout
 from kivymd.uix.scrollview import MDScrollView
@@ -66,11 +71,11 @@ class _SelectorDropdown(MDBoxLayout):
             height=dp(56),
             **kwargs,
         )
-        self._hint     = hint
-        self._opciones = opciones
-        self._menu     = None
+        self._hint      = hint
+        self._opciones  = opciones
+        self._menu      = None
         self._on_change = on_change
-        self.valor     = ""
+        self.valor      = ""
 
         self._caja = MDBoxLayout(
             orientation="horizontal",
@@ -129,46 +134,98 @@ class _SelectorDropdown(MDBoxLayout):
             self._lbl.theme_text_color = "Primary"
 
 
-# ─── Fila de la lista ─────────────────────────────────────────────────────────
+# ─── Fila de la lista (compatible con RecycleView) ────────────────────────────
 
-class _FilaMateria(MDBoxLayout):
-    def __init__(self, row_data: dict, on_editar, on_eliminar, **kwargs):
+class _FilaMateria(RecycleDataViewBehavior, MDBoxLayout):
+    """
+    Viewclass del RecycleView.  Los widgets se crean una sola vez en __init__
+    y se actualizan en refresh_view_attrs al ser reciclados.
+    """
+
+    def __init__(self, **kwargs):
         super().__init__(
             orientation="horizontal",
             size_hint_y=None,
             height=dp(72),
             padding=[dp(8), dp(4), dp(4), dp(4)],
             spacing=dp(4),
-            **kwargs,
         )
 
-        nombre   = row_data["nombre"]
-        unidad   = row_data["unidad_medida"] or "—"
-        cat      = row_data["categoria"]     or "Sin categoría"
-        min_stk  = row_data["stock_minimo"]  or 0
-        stock    = row_data.get("stock_actual", 0) or 0
-        _id      = row_data["id"]
-
-        avatar = MDBoxLayout(size_hint=(None, None), size=(dp(40), dp(40)), md_bg_color=_CAFE)
-        avatar.radius = [dp(20)]
-        avatar.add_widget(MDLabel(
-            text=nombre[0].upper() if nombre else "?",
+        # Avatar
+        self._avatar_box = MDBoxLayout(
+            size_hint=(None, None), size=(dp(40), dp(40)), md_bg_color=_CAFE
+        )
+        self._avatar_box.radius = [dp(20)]
+        self._avatar_lbl = MDLabel(
             halign="center", valign="middle",
             theme_text_color="Custom", text_color=_BLANCO, bold=True,
-        ))
+        )
+        self._avatar_box.add_widget(self._avatar_lbl)
 
-        textos = MDBoxLayout(orientation="vertical", size_hint_x=1, padding=[dp(8), dp(4), 0, dp(4)])
-        textos.add_widget(MDLabel(
-            text=nombre, font_style="Body1", bold=True,
+        # Textos
+        self._textos = MDBoxLayout(
+            orientation="vertical", size_hint_x=1,
+            padding=[dp(8), dp(4), 0, dp(4)],
+        )
+        self._lbl_nombre = MDLabel(
+            font_style="Body1", bold=True,
             size_hint_y=None, height=dp(24),
             shorten=True, shorten_from="right",
-        ))
-        textos.add_widget(MDLabel(
-            text=f"{cat}  ·  {unidad}",
+        )
+        self._lbl_cat = MDLabel(
             font_style="Body2", theme_text_color="Secondary",
             size_hint_y=None, height=dp(20),
             shorten=True, shorten_from="right",
-        ))
+        )
+        self._lbl_stock = MDLabel(
+            font_style="Body2", theme_text_color="Secondary",
+            size_hint_y=None, height=dp(18),
+            shorten=True, shorten_from="right",
+        )
+        self._textos.add_widget(self._lbl_nombre)
+        self._textos.add_widget(self._lbl_cat)
+        self._textos.add_widget(self._lbl_stock)
+
+        # Botones — callbacks almacenados; se actualizan en refresh sin re-bind
+        self._item_id     = None
+        self._cb_editar   = None
+        self._cb_eliminar = None
+
+        self._btn_ed = MDIconButton(
+            icon="pencil-outline",
+            theme_icon_color="Custom", icon_color=_CAFE,
+        )
+        self._btn_del = MDIconButton(
+            icon="delete-outline",
+            theme_icon_color="Custom", icon_color=_ROJO,
+        )
+        self._btn_ed.bind(
+            on_release=lambda *a: self._cb_editar and self._cb_editar(self._item_id)
+        )
+        self._btn_del.bind(
+            on_release=lambda *a: self._cb_eliminar and self._cb_eliminar(self._item_id)
+        )
+
+        self.add_widget(self._avatar_box)
+        self.add_widget(self._textos)
+        self.add_widget(self._btn_ed)
+        self.add_widget(self._btn_del)
+
+    def refresh_view_attrs(self, rv, index, data):
+        """Llamado por RecycleView al reciclar/asignar este widget a un item."""
+        nombre  = data.get("nombre", "")
+        unidad  = data.get("unidad_medida") or "—"
+        cat     = data.get("categoria") or "Sin categoría"
+        min_stk = data.get("stock_minimo") or 0
+        stock   = data.get("stock_actual", 0) or 0
+
+        self._item_id     = data.get("id")
+        self._cb_editar   = rv.on_editar
+        self._cb_eliminar = rv.on_eliminar
+
+        self._avatar_lbl.text = nombre[0].upper() if nombre else "?"
+        self._lbl_nombre.text = nombre
+        self._lbl_cat.text    = f"{cat}  ·  {unidad}"
 
         if stock <= 0:
             stock_txt = f"Stock: {stock:.2f} {unidad}  🔴 SIN STOCK"
@@ -176,23 +233,33 @@ class _FilaMateria(MDBoxLayout):
             stock_txt = f"Stock: {stock:.2f}  ⚠ < mínimo ({min_stk:.2f})"
         else:
             stock_txt = f"Stock: {stock:.2f} {unidad}  ·  Mín: {min_stk:.2f}"
+        self._lbl_stock.text = stock_txt
 
-        textos.add_widget(MDLabel(
-            text=stock_txt, font_style="Body2", theme_text_color="Secondary",
-            size_hint_y=None, height=dp(18),
-            shorten=True, shorten_from="right",
-        ))
+        # Color alternado de fila
+        self.md_bg_color = _GRIS if index % 2 == 1 else _BLANCO
 
-        btn_ed = MDIconButton(icon="pencil-outline", theme_icon_color="Custom", icon_color=_CAFE)
-        btn_ed.bind(on_release=lambda x, i=_id: on_editar(i))
+        return super().refresh_view_attrs(rv, index, data)
 
-        btn_del = MDIconButton(icon="delete-outline", theme_icon_color="Custom", icon_color=_ROJO)
-        btn_del.bind(on_release=lambda x, i=_id: on_eliminar(i))
 
-        self.add_widget(avatar)
-        self.add_widget(textos)
-        self.add_widget(btn_ed)
-        self.add_widget(btn_del)
+# ─── RecycleView de la lista ──────────────────────────────────────────────────
+
+class _ListaRV(RecycleView):
+    """RecycleView que sólo renderiza items visibles en pantalla."""
+
+    def __init__(self, on_editar, on_eliminar, **kwargs):
+        super().__init__(do_scroll_x=False, **kwargs)
+        self.on_editar   = on_editar
+        self.on_eliminar = on_eliminar
+        self.viewclass   = _FilaMateria
+
+        rbl = RecycleBoxLayout(
+            default_size=(None, dp(72)),
+            default_size_hint=(1, None),
+            size_hint_y=None,
+            orientation="vertical",
+        )
+        rbl.bind(minimum_height=rbl.setter("height"))
+        self.add_widget(rbl)
 
 
 # ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -203,9 +270,10 @@ class Pantalla(PantallaBase):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._id_editando = None
-        self._dialog_form = None
-        self._todos       = []
+        self._id_editando    = None
+        self._dialog_form    = None
+        self._todos          = []
+        self._cache_materias = None   # invalidar al agregar/editar/eliminar
         self._construir_ui()
 
     def _construir_ui(self):
@@ -223,13 +291,35 @@ class Pantalla(PantallaBase):
         self.layout_raiz.add_widget(barra)
         self.layout_raiz.add_widget(MDDivider())
 
-        self._contenedor = MDBoxLayout(
-            orientation="vertical", adaptive_height=True,
-            md_bg_color=_BLANCO, padding=[0, dp(8), 0, 0],
+        # RecycleView — lista principal
+        self._rv = _ListaRV(
+            on_editar=self._abrir_form,
+            on_eliminar=self._pedir_confirmar_eliminar,
+            size_hint=(1, 1),
         )
-        scroll = MDScrollView(do_scroll_x=False)
-        scroll.add_widget(self._contenedor)
-        self.layout_raiz.add_widget(scroll)
+
+        # Estado vacío — se muestra cuando no hay datos o coincidencias
+        self._vacio = MDBoxLayout(
+            orientation="vertical",
+            size_hint=(1, None),
+            height=0,
+            opacity=0,
+            padding=[dp(16), dp(32)],
+            spacing=dp(12),
+        )
+        self._vacio.add_widget(MDLabel(
+            text="No hay materias primas registradas",
+            halign="center", font_style="H6", theme_text_color="Secondary",
+            size_hint_y=None, height=dp(40),
+        ))
+        self._vacio.add_widget(MDLabel(
+            text='Toca el botón "+" para agregar la primera',
+            halign="center", font_style="Body2", theme_text_color="Secondary",
+            size_hint_y=None, height=dp(30),
+        ))
+
+        self.layout_raiz.add_widget(self._rv)
+        self.layout_raiz.add_widget(self._vacio)
 
         self._fab = MDFloatingActionButton(
             icon="plus", md_bg_color=_CAFE,
@@ -247,21 +337,45 @@ class Pantalla(PantallaBase):
         self._tf_buscar.text = ""
         self._cargar_datos()
 
+    # ── Carga con caché + hilo separado ──────────────────────────────────────
+
     def _cargar_datos(self):
-        conn = database.get_connection()
-        rows = conn.execute("""
-            SELECT  mp.id, mp.nombre, mp.descripcion, mp.unidad_medida,
-                    mp.stock_minimo, mp.categoria, mp.proveedor_id,
-                    COALESCE(SUM(l.cantidad_actual), 0) AS stock_actual
-            FROM    materias_primas mp
-            LEFT JOIN lotes l ON l.materia_prima_id = mp.id AND l.activo = 1
-            WHERE   mp.activo = 1
-            GROUP   BY mp.id
-            ORDER   BY mp.nombre COLLATE NOCASE
-        """).fetchall()
-        conn.close()
-        self._todos = [dict(r) for r in rows]
-        self._renderizar(self._todos)
+        """Usa caché si está vigente; si no, consulta SQLite en un hilo."""
+        if self._cache_materias is not None:
+            self._todos = self._cache_materias
+            self._renderizar(self._todos)
+            return
+
+        def _fetch():
+            conn = database.get_connection()
+            rows = conn.execute("""
+                SELECT  mp.id, mp.nombre, mp.descripcion, mp.unidad_medida,
+                        mp.stock_minimo, mp.categoria, mp.proveedor_id,
+                        COALESCE(SUM(l.cantidad_actual), 0) AS stock_actual
+                FROM    materias_primas mp
+                LEFT JOIN lotes l ON l.materia_prima_id = mp.id AND l.activo = 1
+                WHERE   mp.activo = 1
+                GROUP   BY mp.id
+                ORDER   BY mp.nombre COLLATE NOCASE
+            """).fetchall()
+            conn.close()
+            resultado = [dict(r) for r in rows]
+            Clock.schedule_once(lambda dt: self._on_datos_cargados(resultado), 0)
+
+        threading.Thread(target=_fetch, daemon=True).start()
+
+    def _on_datos_cargados(self, rows):
+        """Callback del hilo — se ejecuta en el hilo principal via Clock."""
+        self._cache_materias = rows
+        self._todos = rows
+        # Aplicar filtro activo si el usuario escribió mientras cargaba
+        texto = self._tf_buscar.text.strip().lower()
+        if texto:
+            self._renderizar([r for r in rows if texto in r["nombre"].lower()])
+        else:
+            self._renderizar(rows)
+
+    # ── Filtrado ──────────────────────────────────────────────────────────────
 
     def _filtrar(self, texto):
         t = texto.strip().lower()
@@ -270,36 +384,25 @@ class Pantalla(PantallaBase):
             return
         self._renderizar([r for r in self._todos if t in r["nombre"].lower()])
 
-    def _renderizar(self, rows):
-        self._contenedor.clear_widgets()
-        if not rows:
-            vacio = MDBoxLayout(
-                orientation="vertical", size_hint_y=None, height=dp(200),
-                padding=[dp(16), dp(32)], spacing=dp(12),
-            )
-            vacio.add_widget(MDLabel(
-                text="No hay materias primas registradas",
-                halign="center", font_style="H6", theme_text_color="Secondary",
-                size_hint_y=None, height=dp(40),
-            ))
-            vacio.add_widget(MDLabel(
-                text='Toca el botón "+" para agregar la primera',
-                halign="center", font_style="Body2", theme_text_color="Secondary",
-                size_hint_y=None, height=dp(30),
-            ))
-            self._contenedor.add_widget(vacio)
-            return
+    # ── Renderizado con RecycleView ───────────────────────────────────────────
 
-        for i, row in enumerate(rows):
-            fila = _FilaMateria(
-                row_data=row,
-                on_editar=self._abrir_form,
-                on_eliminar=self._pedir_confirmar_eliminar,
-            )
-            if i % 2 == 1:
-                fila.md_bg_color = _GRIS
-            self._contenedor.add_widget(fila)
-            self._contenedor.add_widget(MDDivider())
+    def _renderizar(self, rows):
+        if rows:
+            self._rv.data         = rows
+            self._rv.size_hint_y  = 1
+            self._rv.opacity      = 1
+            self._vacio.size_hint_y = None
+            self._vacio.height    = 0
+            self._vacio.opacity   = 0
+        else:
+            self._rv.data         = []
+            self._rv.size_hint_y  = None
+            self._rv.height       = 0
+            self._rv.opacity      = 0
+            self._vacio.size_hint_y = 1
+            self._vacio.opacity   = 1
+
+    # ── Formulario ───────────────────────────────────────────────────────────
 
     def _campo_texto(self, hint: str, texto: str = "",
                      teclado: str = "normal", error_msg: str = "") -> MDTextField:
@@ -345,8 +448,8 @@ class Pantalla(PantallaBase):
 
         def _on_categoria_change(valor):
             es_otra = (valor == "Otra")
-            self._tf_categoria_custom.height   = dp(68) if es_otra else 0
-            self._tf_categoria_custom.opacity  = 1 if es_otra else 0
+            self._tf_categoria_custom.height  = dp(68) if es_otra else 0
+            self._tf_categoria_custom.opacity = 1 if es_otra else 0
 
         self._sel_categoria = _SelectorDropdown(
             hint="Categoría", opciones=CATEGORIAS, on_change=_on_categoria_change
@@ -433,7 +536,7 @@ class Pantalla(PantallaBase):
                 return
         else:
             categoria = self._sel_categoria.valor or None
-        nombre_prov = self._sel_proveedor.valor
+        nombre_prov  = self._sel_proveedor.valor
         proveedor_id = self._prov_map.get(nombre_prov) if nombre_prov and nombre_prov != "— Ninguno —" else None
         desc = self._tf_desc.text.strip() or None
 
@@ -461,6 +564,7 @@ class Pantalla(PantallaBase):
         finally:
             conn.close()
 
+        self._cache_materias = None   # invalidar caché
         self._dialog_form.dismiss()
         self.show_snack(msg)
         self._cargar_datos()
@@ -485,5 +589,6 @@ class Pantalla(PantallaBase):
         conn.execute("UPDATE materias_primas SET activo=0 WHERE id=?", (id_mp,))
         conn.commit()
         conn.close()
+        self._cache_materias = None   # invalidar caché
         self.show_snack("Materia prima eliminada")
         self._cargar_datos()
